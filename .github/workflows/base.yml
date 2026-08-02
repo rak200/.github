@@ -145,10 +145,10 @@ jobs:
                   "$(jq -r '.require.php // empty' composer.json | sed 's/^\^//; s/$/+/')"
             claim "License" 'license-' "$(jq -r '.license // empty' composer.json)"
           fi
-          if [ -f phpstan.neon.dist ]; then
-            claim "PHPStan level" 'PHPStan-level%20' \
-                  "$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist | head -1)"
-          fi
+          # The PHPStan-level claim is NOT made here. Once the level moved into the
+          # pinned Layer 2 config, the repository alone no longer states it, and this
+          # job has no vendor/ — the claim would silently resolve to nothing. It is
+          # made in php.yml, after install, where the effective level is readable.
           echo "verified $verified mirror badges"
           exit $fail
 

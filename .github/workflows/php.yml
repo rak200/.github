@@ -88,6 +88,47 @@ jobs:
       - name: composer install
         run: composer install --prefer-dist --no-progress
 
+      # Layer 1 states that CI asserts the task vocabulary. Until the utils pilot,
+      # nothing did — the sentence described a check that was never written.
+      #
+      # `validate` is asserted ABSENT, which is not an oversight: Composer ships a
+      # native command of that name and skips any script that shadows it, under
+      # `composer validate` and `composer run-script validate` alike. Declaring it
+      # produces configuration that can never execute, and reads as covered.
+      - name: The task vocabulary is declared
+        if: env.IS_FLOOR == 'true'
+        run: |
+          set -uo pipefail
+          fail=0
+          for verb in lint fix analyse test coverage scan mutation; do
+            jq -e --arg v "$verb" '.scripts[$v] // empty' composer.json >/dev/null \
+              || { echo "::error file=composer.json::the '$verb' verb is not declared"; fail=1; }
+          done
+          if jq -e '.scripts.validate // empty' composer.json >/dev/null; then
+            echo "::error file=composer.json::'validate' must not be declared — Composer skips a script shadowing a native command, so it can never run"
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] && echo "seven verbs declared, validate correctly absent"
+          exit $fail
+
+      # The PHPStan level lives in the pinned Layer 2 config, so the conformance job
+      # — which has no vendor/ — cannot read it. The claim is made here instead, and
+      # a local override in the repo's own config wins, as it does for the analyser.
+      - name: README PHPStan badge matches the effective level
+        if: env.IS_FLOOR == 'true'
+        run: |
+          set -uo pipefail
+          [ -f README.md ] || { echo "no README.md"; exit 0; }
+          level=$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist 2>/dev/null | head -1)
+          [ -n "$level" ] || level=$(grep -oP '(?<=level:\s)\S+' \
+            vendor/rak200/coding-standard-php/phpstan.neon.dist 2>/dev/null | head -1)
+          [ -n "$level" ] || { echo "::error::no PHPStan level found locally or in the pinned standard"; exit 1; }
+          shown=$(grep -oP 'img\.shields\.io/badge/PHPStan-level%20\K[^-)?]*(?=-)' README.md | head -1 || true)
+          [ -n "$shown" ] || { echo "::error file=README.md::PHPStan badge is absent, but the effective level is '$level'"; exit 1; }
+          decoded=${shown//%20/ }
+          echo "badge says '$decoded', effective level is '$level'"
+          [ "$decoded" = "$level" ]
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
