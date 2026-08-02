@@ -18,6 +18,10 @@ Three fields are load-bearing and each was earned by a measurement:
 - **`bypass_mode: pull_request`, never `always`.** `always` permits a **direct push** to the
   default branch. Under `pull_request` a push is refused for every actor including the owner,
   which is the property the lifecycle depends on.
+- **The required context is `ci / gate`, with the space.** A caller job invoking a reusable
+  workflow publishes `<caller job> / <callee job>`, and that is the name the ruleset must match.
+  Requiring a bare `gate` waits for a check that is never published — the *absent check*
+  deadlock: the pull request sits blocked forever with nothing red to read.
 - **The tag pattern is `refs/tags/[0-9]*`,** matching bare SemVer tags — the ecosystem's style.
   `update` is what makes a tag immutable; `non_fast_forward` alone lets a fast-forward move slip
   through.
