@@ -173,9 +173,24 @@ jobs:
       # A full run is tens of minutes on a real library, and a required check that slow is
       # one people learn to route around. The vocabulary still has one mutation verb:
       # Layer 1 owns the word, CI owns when and over what it runs.
+      #
+      # Stryker has no `--since`: that is Infection's flag, and passing it here is an
+      # `unknown option` error. Stryker's own incremental mode caches a report file,
+      # which a fresh CI runner does not have — so the changed files are computed here
+      # and handed to `--mutate`. Note the asymmetry with PHP, which mutates changed
+      # LINES: Stryker's granularity is the file, so a one-line edit mutates its whole
+      # file. Stricter, and cheap at this size.
       - name: npm run mutation — floor (changed files)
         if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
-        run: npm run mutation -- --since=origin/${{ github.base_ref }}
+        run: |
+          set -uo pipefail
+          changed=$(git diff --name-only --diff-filter=d             "origin/${{ github.base_ref }}...HEAD" -- 'src/**/*.ts'             | grep -v '\.test\.ts$' | paste -sd, - || true)
+          if [ -z "$changed" ]; then
+            echo "no source file changed — nothing to mutate"
+            exit 0
+          fi
+          echo "mutating: $changed"
+          npm run mutation -- --mutate "$changed"
 
       - name: npm run mutation — floor (full)
         if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
