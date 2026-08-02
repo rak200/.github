@@ -28,11 +28,17 @@ jobs:
       contents: write        # cut the tag and the GitHub Release
       pull-requests: write   # open and maintain the Release PR
     steps:
-      # The Release PR is opened by GITHUB_TOKEN, so it publishes NO checks — a PR
-      # from the Actions token does not trigger `pull_request` workflows. That is the
-      # absent-check deadlock, it is expected here, and it is the entire reason the
-      # branch ruleset carries an admin bypass in `pull_request` mode. Merging the
-      # Release PR is the one merge that crosses a required check that never arrived.
+      # The Release PR needs ONE human action before it can merge, and it is not the
+      # one this comment used to name. The claim here was that a PR opened by
+      # GITHUB_TOKEN publishes no checks at all, leaving a required check that never
+      # arrives — the absent-check deadlock the branch ruleset's admin bypass exists
+      # for. Measured on rak200/ui#3: a `pull_request` run IS created, actor
+      # github-actions[bot], and it completes attempt 1 with the conclusion
+      # `action_required` without executing. The check is HELD, not absent. Approve
+      # the run (attempt 2 then carries the approver as triggering_actor), the checks
+      # report normally, and the merge crosses `ci / gate` in SUCCESS with no bypass
+      # involved. So: approve the run, then merge it like any other PR. Do not reach
+      # for --admin — that skips the verification the approval was about to buy.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
