@@ -1,0 +1,41 @@
+name: release
+
+# The release half of the model, and until the utils pilot it did not exist: the
+# scaffold shipped release-please-config.json and .release-please-manifest.json to
+# every repository, LIFECYCLE described the Release PR, and no workflow ever ran
+# release-please. Configuration for an automation nobody had wired.
+#
+# Language-agnostic on purpose. release-please reads `release-type` from the repo's
+# own config file, so PHP and TypeScript need the same three lines here.
+
+on:
+  workflow_call:
+    inputs:
+      target-branch:
+        description: 'Branch to release from. Only a maintenance branch overrides it.'
+        type: string
+        default: master
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write        # cut the tag and the GitHub Release
+      pull-requests: write   # open and maintain the Release PR
+    steps:
+      # The Release PR is opened by GITHUB_TOKEN, so it publishes NO checks — a PR
+      # from the Actions token does not trigger `pull_request` workflows. That is the
+      # absent-check deadlock, it is expected here, and it is the entire reason the
+      # branch ruleset carries an admin bypass in `pull_request` mode. Merging the
+      # Release PR is the one merge that crosses a required check that never arrived.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: ${{ inputs.target-branch }}
