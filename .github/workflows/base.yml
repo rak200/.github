@@ -110,6 +110,99 @@ jobs:
           [ "$checked" -gt 0 ] || { echo "::error::no seeds checked — the manifest matched nothing"; exit 1; }
           exit $fail
 
+      # The check above grades a repository against ITS OWN pinned scaffold, so a stale
+      # pin compares an old file to an old seed and passes. The check that exists to
+      # detect drift is the one that hides it, by construction.
+      #
+      # Measured on rak200/utils: pinned eight releases behind, with one `exact` seed
+      # changed underneath it — `release-please-config.json`, missing the line that
+      # keeps the package name out of the tag. Its next release would have been tagged
+      # `utils-4.6.0`, which Composer does not read as a version at all, so the release
+      # would have been invisible to every consumer in the estate. Gate green throughout.
+      #
+      # Deliberately NOT "the pin must be the latest tag". That reddens every repository
+      # the moment the baseline cuts a release, for something absent from the pull
+      # request — the slow, noisy required check people learn to route around, which is
+      # the failure mode this pipeline exists to prevent. It fails on the narrow
+      # condition that actually broke: a seed THIS variant consumes changed between the
+      # pin and the latest tag, which is exactly when the check above is grading against
+      # an obsolete rulebook. A pin that is merely old, with nothing changed underneath
+      # it, is harmless and stays quiet.
+      - name: The pinned scaffold is not obsolete
+        if: ${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}
+        env:
+          VARIANT: ${{ inputs.variant }}
+        working-directory: .rak200
+        run: |
+          set -uo pipefail
+          # actions/checkout may leave a submodule shallow, and a shallow clone cannot
+          # diff two arbitrary commits — it would fail as a missing object rather than
+          # as a finding. Written as an `if` rather than `[ … ] && …` on purpose: GitHub
+          # runs this under `bash -e`, where a bare test that returns false ends the step
+          # then and there. That has already cost this pipeline two steps.
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+            git fetch --unshallow --quiet
+          fi
+          git fetch --tags --quiet origin
+
+          pinned=$(git rev-parse HEAD)
+          if ! pin_tag=$(git describe --tags --exact-match "$pinned" 2>/dev/null); then
+            echo "::error::.rak200 is pinned at $pinned, which is not a tag. The baseline is tag-pinned by design: a bare commit has no version to reason about, and nothing can say whether it is behind."
+            exit 1
+          fi
+          latest=$(git tag --sort=-v:refname | head -1)
+          [ -n "$latest" ] || { echo "::error::the baseline repository has no tags to compare against"; exit 1; }
+          echo "pinned $pin_tag, latest $latest"
+          if [ "$pin_tag" = "$latest" ]; then
+            echo "the pin is current"
+            exit 0
+          fi
+
+          fail=0
+          rows() { git show "$1:scaffold/seeds.tsv" | awk -F'\t' -v v="$VARIANT" '$1=="all"||$1==v'; }
+
+          # The manifest first, and only the rows this variant reads: a row added since
+          # the pin is a seed this repository does not know it owes, and no per-seed
+          # comparison can find a seed it never looks at. Rows for other variants are
+          # not this repository's business — half the manifest's history is the other
+          # language arriving.
+          if [ "$(rows "$pinned")" != "$(rows "$latest")" ]; then
+            echo "::error::the seeds.tsv rows for variant '$VARIANT' changed between $pin_tag and $latest — the manifest this repository is checked against is itself obsolete"
+            fail=1
+          fi
+
+          # Each seed is compared THE WAY IT IS GRADED. Comparing raw was the first
+          # version of this step and it was wrong: it fired on `ci.yml` and `release.yml`,
+          # whose only change was the reusable-workflow pin — a region `masked:` removes
+          # before grading. That is a difference no check would ever act on, so reporting
+          # it makes the estate red for nothing every time the baseline bumps a pin,
+          # which is precisely the noisy-required-check shape this step was written to
+          # avoid. Caught by running it against rak200/utils before shipping it.
+          while IFS=$'\t' read -r _variant form seed _dest; do
+            old=$(git show "$pinned:scaffold/$seed" 2>/dev/null || true)
+            new=$(git show "$latest:scaffold/$seed" 2>/dev/null || true)
+            case "$form" in
+              prefix:*)
+                n=${form#prefix:}
+                old=$(printf '%s\n' "$old" | head -n "$n")
+                new=$(printf '%s\n' "$new" | head -n "$n")
+                ;;
+              masked:*)
+                pat=${form#masked:}
+                old=$(printf '%s\n' "$old" | sed -E "s#$pat#<masked>#")
+                new=$(printf '%s\n' "$new" | sed -E "s#$pat#<masked>#")
+                ;;
+            esac
+            if [ "$old" != "$new" ]; then
+              echo "::error::$seed changed between $pin_tag and $latest — this repository is being graded against an obsolete copy of it"
+              fail=1
+            fi
+          done < <(rows "$latest")
+          if [ "$fail" -eq 0 ]; then
+            echo "nothing this variant consumes changed since $pin_tag — an old pin, harmlessly"
+          fi
+          exit $fail
+
       # A mirror badge is checked by anchoring on the shields.io badge KEY and reading
       # the value that follows it. The previous form anchored on a regex whose match
       # swallowed the trailing delimiter, so the extraction that followed it could not
