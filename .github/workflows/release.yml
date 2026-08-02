@@ -15,6 +15,17 @@ on:
         description: 'Branch to release from. Only a maintenance branch overrides it.'
         type: string
         default: master
+    outputs:
+      # Whatever happens after a release must happen in THIS run. A tag and a Release
+      # created with the repository's own GITHUB_TOKEN do not start a new workflow, so
+      # an `on: release: published` job would sit there and never fire. Anything that
+      # publishes therefore hangs off these outputs — see npm-publish.yml.
+      release_created:
+        description: 'The string "true" when this run cut a release. Empty otherwise.'
+        value: ${{ jobs.release-please.outputs.release_created }}
+      tag_name:
+        description: 'The tag just cut, e.g. `0.1.0`. Empty when no release was cut.'
+        value: ${{ jobs.release-please.outputs.tag_name }}
 
 permissions:
   contents: read
@@ -27,6 +38,9 @@ jobs:
     permissions:
       contents: write        # cut the tag and the GitHub Release
       pull-requests: write   # open and maintain the Release PR
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       # The Release PR needs ONE human action before it can merge, and it is not the
       # one this comment used to name. The claim here was that a PR opened by
@@ -39,7 +53,8 @@ jobs:
       # report normally, and the merge crosses `ci / gate` in SUCCESS with no bypass
       # involved. So: approve the run, then merge it like any other PR. Do not reach
       # for --admin — that skips the verification the approval was about to buy.
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
