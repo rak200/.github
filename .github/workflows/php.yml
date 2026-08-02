@@ -112,6 +112,15 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+      # semgrep is a Python tool: nothing in the Composer graph installs it, so without
+      # this step `composer scan` exits 127 and the scanner that the whole three-step
+      # dance below protects is not there at all. Pinned exactly, the way an action is
+      # pinned by SHA. Dependabot cannot see a version inside a `run:` step, so this pin
+      # moves when the pipeline is released — it is pipeline state, not repo state.
+      - name: Install semgrep
+        if: env.IS_FLOOR == 'true'
+        run: pipx install semgrep==1.172.0
+
       # Three ordered scanner steps, and the order is the whole point: round 2 found
       # two scanners that captured an exit code and never acted on it. Scan, upload,
       # then enforce — the enforcement step is separate so the upload cannot swallow it.
@@ -133,8 +142,25 @@ jobs:
           echo "scanner exit code: ${{ steps.scan.outputs.code }}"
           [ "${{ steps.scan.outputs.code }}" = "0" ]
 
-      - name: composer mutation — floor
-        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation }}
+      # Mutation runs over the CHANGED LINES on a pull request and in full off that
+      # path. A full run is tens of minutes on a real library (~27 on rak200/utils),
+      # and a required check that slow is one people learn to route around — which is
+      # the failure mode this whole design exists to prevent. The vocabulary still has
+      # exactly one mutation verb: Layer 1 owns the word, CI owns when and over what it
+      # runs. `--ignore-msi-with-no-mutations` lets a docs-only PR pass instead of
+      # failing on zero mutants; the diff base needs the `fetch-depth: 0` above.
+      - name: composer mutation — floor (changed lines)
+        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+        run: |
+          composer mutation -- --git-diff-lines \
+            --git-diff-base="origin/${{ github.base_ref }}" \
+            --ignore-msi-with-no-mutations
+
+      # The full run is the safety net the diff gate structurally cannot be: a change in
+      # one file can stop a test from killing a mutant in a file the diff never touched.
+      # Manual, before a significant release — the caller carries `workflow_dispatch`.
+      - name: composer mutation — floor (full)
+        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
         run: composer mutation
 
   gate:

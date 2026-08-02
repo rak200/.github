@@ -110,31 +110,53 @@ jobs:
           [ "$checked" -gt 0 ] || { echo "::error::no seeds checked — the manifest matched nothing"; exit 1; }
           exit $fail
 
+      # A mirror badge is checked by anchoring on the shields.io badge KEY and reading
+      # the value that follows it. The previous form anchored on a regex whose match
+      # swallowed the trailing delimiter, so the extraction that followed it could not
+      # emit a value for any badge, present or absent, right or wrong — the step could
+      # not fail. It never did, on any repository, which is exactly how it survived.
       - name: README mirror badges match their sources
         run: |
           set -uo pipefail
           [ -f README.md ] || { echo "no README.md — nothing to mirror"; exit 0; }
           fail=0
-          claim() {  # <label> <badge-regex> <actual>
+          verified=0
+          # claim <label> <shields badge key, including its trailing '-'> <source value>
+          # An absent badge is a failure, not a pass: where the source exists the claim
+          # is owed. Silence was the old bug and is not the new behaviour.
+          claim() {
             [ -n "$3" ] || return 0
-            shown=$(grep -oE "$2" README.md | head -1 | grep -oE '[^-]+$' || true)
-            [ -n "$shown" ] || return 0
-            decoded=${shown//%20/ }
+            shown=$(grep -oP "img\.shields\.io/badge/\Q$2\E\K[^-)?]*(?=-)" README.md | head -1 || true)
+            if [ -z "$shown" ]; then
+              echo "::error file=README.md::$1 badge is absent, but its source says '$3'"
+              fail=1; return 0
+            fi
+            decoded=${shown//%20/ }; decoded=${decoded//%2B/+}
+            verified=$((verified + 1))
             if [ "$decoded" != "$3" ]; then
               echo "::error file=README.md::$1 badge says '$decoded', source says '$3'"
               fail=1
             fi
           }
           if [ -f composer.json ]; then
-            claim "PHP version" 'PHP-[^-)]*-' "$(jq -r '.require.php // empty' composer.json)"
-            claim "License" 'License-[^-)]*-' "$(jq -r '.license // empty' composer.json)"
+            # The manifest's `^8.4` renders as `8.4+` on the badge. This is the only
+            # normalisation: everywhere else the badge carries the source verbatim.
+            claim "PHP version" 'php-' \
+                  "$(jq -r '.require.php // empty' composer.json | sed 's/^\^//; s/$/+/')"
+            claim "License" 'license-' "$(jq -r '.license // empty' composer.json)"
           fi
           if [ -f phpstan.neon.dist ]; then
-            claim "PHPStan level" 'PHPStan-level%20[^-)]*-' \
-                  "level $(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist | head -1)"
+            claim "PHPStan level" 'PHPStan-level%20' \
+                  "$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist | head -1)"
           fi
+          echo "verified $verified mirror badges"
           exit $fail
 
+      # `grep -P`, not `-E`: the symbol pattern is PCRE — `(?:` is not ERE syntax, and
+      # ERE parses it as something that matches almost nothing. Measured on a real
+      # library: 1 symbol found under -E against 358 under -P. The step was green in
+      # both cases, and could only be green, because the repositories that ran it had
+      # no src/ and returned at the guard above. Hence the vacuity guard below.
       - name: Public symbols appear in docs/
         if: inputs.symbol-pattern != ''
         env:
@@ -145,14 +167,17 @@ jobs:
             echo "no src/ or no docs/ — check does not apply"; exit 0
           fi
           fail=0
-          missing=0
+          found=0
           while read -r symbol; do
             [ -n "$symbol" ] || continue
+            found=$((found + 1))
             grep -Rqw -- "$symbol" docs/ || {
               echo "::error::public symbol '$symbol' is documented nowhere in docs/"
-              missing=$((missing + 1)); fail=1
+              fail=1
             }
-          done < <(grep -rhoE "$PATTERN" src/ | grep -oE '[A-Za-z_][A-Za-z0-9_]*$' | sort -u)
+          done < <(grep -rhoP "$PATTERN" src/ | grep -oE '[A-Za-z_][A-Za-z0-9_]*$' | sort -u)
+          echo "found $found public symbols in src/"
+          [ "$found" -gt 0 ] || { echo "::error::src/ exists but the pattern matched no symbol"; exit 1; }
           [ "$fail" -eq 0 ] && echo "every public symbol is documented"
           exit $fail
 
