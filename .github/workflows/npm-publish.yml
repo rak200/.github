@@ -1,0 +1,86 @@
+name: npm-publish
+
+# Publishes a cut release to npm, with no stored credential.
+#
+# It exists because the ui pilot cut 0.1.0 and nothing reached a registry: the tag and
+# the GitHub Release were the whole release, and `npm install @rak200/ui` — which that
+# repository's own README documents — returned 404. PHP hid the gap for a full pilot,
+# because Packagist resolves from the git tag, so there the tag IS the publication.
+# For npm the tag is nothing.
+#
+# Two constraints shaped the file, and both are the platform's, not preferences:
+#
+#   * It must run in the SAME workflow run as release-please. A tag and a Release
+#     created with the repository's own GITHUB_TOKEN start no new workflow, so an
+#     `on: release: published` job never fires. Hence `needs:` on release.yml's
+#     outputs rather than a second event.
+#
+#   * npm's trusted publishing validates the CALLER workflow's filename, not the one
+#     that actually runs `npm publish` — a documented limitation of workflow_call. So
+#     the trusted publisher is registered against the consumer's own `release.yml`,
+#     and `id-token: write` must be granted on BOTH sides of the call: the caller's
+#     job and this job. Granting it in only one place fails at the token exchange.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The tag to publish, from release.yml''s tag_name output.'
+        type: string
+        required: true
+      node-version:
+        description: 'Node major used to build and publish. Trusted publishing needs >= 22.14.'
+        type: string
+        default: '24'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: npm publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write   # the OIDC exchange — this IS the credential
+    steps:
+      # The tag, not the branch. master may already carry the next commit by the time
+      # this job starts, and what was released is what must be published.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.tag }}
+          submodules: recursive
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      # Trusted publishing needs npm >= 11.5.1. The runner's bundled npm satisfies it
+      # today on Node 24 and will not on an older floor, so the requirement is asserted
+      # rather than assumed: a silent fall back to "no credential found" is the exact
+      # looks-green shape this estate keeps removing.
+      - name: npm is new enough to publish without a token
+        run: |
+          set -uo pipefail
+          have=$(npm --version)
+          echo "npm $have"
+          printf '11.5.1\n%s\n' "$have" | sort -V -C \
+            || { echo "::error::trusted publishing needs npm >= 11.5.1, this runner has $have"; exit 1; }
+
+      - name: npm ci
+        run: npm ci
+
+      # `validate` is build + publint --strict: the tarball is checked immediately
+      # before it is published, which is the only moment the check is worth anything.
+      - name: npm run validate
+        run: npm run validate
+
+      # No NODE_AUTH_TOKEN, no secret of any kind. npm detects the Actions OIDC context
+      # and exchanges it, and provenance is attached automatically for a public package
+      # from a public repository. `access` comes from package.json's publishConfig — a
+      # scoped package publishes as restricted by default, which fails on a free plan.
+      - name: npm publish
+        run: npm publish
