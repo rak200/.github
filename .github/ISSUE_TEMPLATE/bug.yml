@@ -1,0 +1,38 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bug report is most useful when someone else can reproduce it without asking you
+        anything. The fields below exist for that reason.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The observed behaviour, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Smallest input or snippet that shows it. Exact values beat descriptions.
+      render: php
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release or commit where you saw it.
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      description: e.g. PHP 8.4.3 on Windows 11, or Node 22 on Ubuntu.
+    validations:
+      required: false

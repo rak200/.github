@@ -1,0 +1,153 @@
+name: php
+
+# The PHP pipeline. Steps invoke verbs (composer <verb>), never tools, which is what
+# lets this file and js.yml share a shape — see the RFC's Shared task vocabulary.
+
+on:
+  workflow_call:
+    inputs:
+      php-versions:
+        description: 'JSON array of PHP versions. The first is the floor: single-run steps ride it.'
+        type: string
+        default: '["8.4", "8.5"]'
+      runs-on:
+        description: 'JSON array of runners. ubuntu-latest alone unless a repo has an OS-shaped reason.'
+        type: string
+        default: '["ubuntu-latest"]'
+      extensions:
+        description: 'PHP extensions for setup-php.'
+        type: string
+        default: 'mbstring'
+      mutation:
+        description: 'Run the mutation floor. Off for a repo that has not reached it yet.'
+        type: boolean
+        default: true
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  base:
+    uses: ./.github/workflows/base.yml
+    with:
+      variant: php
+      # A class, interface, enum, trait or public method name in src/.
+      symbol-pattern: '^\s*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+|^\s*public\s+(?:static\s+)?function\s+\w+'
+      publish-gate: false
+
+  matrix:
+    name: PHP ${{ matrix.php }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      # Never fail-fast on a version matrix: the useful information is whether a
+      # failure is version-specific or general, and cancelling the siblings destroys it.
+      fail-fast: false
+      matrix:
+        php: ${{ fromJSON(inputs.php-versions) }}
+        os: ${{ fromJSON(inputs.runs-on) }}
+    permissions:
+      contents: read
+      security-events: write   # SARIF upload — not enforced on public repos
+      actions: read            # codeql-action reads the run — private repos only
+      id-token: write          # Codecov OIDC
+    env:
+      IS_FLOOR: ${{ matrix.php == fromJSON(inputs.php-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          submodules: recursive
+          fetch-depth: 0   # Infection diffs against origin/master
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ inputs.extensions }}
+          coverage: pcov
+          tools: composer:v2
+
+      - name: composer validate
+        run: composer validate --no-check-publish
+
+      # Libraries commit no composer.lock, so the key is the manifest plus the runtime.
+      # Composer's cache holds package archives, not a resolution: a restored cache
+      # skips downloads while resolution still happens from scratch.
+      - name: Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ matrix.os }}-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ matrix.os }}-php${{ matrix.php }}-
+
+      - name: composer install
+        run: composer install --prefer-dist --no-progress
+
+      - name: composer lint
+        if: env.IS_FLOOR == 'true'   # style is version-invariant
+        run: composer lint
+
+      - name: composer analyse
+        run: composer analyse
+
+      - name: composer test
+        run: composer test -- --coverage-clover=coverage.xml
+
+      # The floor is enforced inside the job, from a file in the repo, so the required
+      # check never waits on a third party. Codecov below is reporting only.
+      - name: composer coverage — floor
+        if: env.IS_FLOOR == 'true'
+        run: composer coverage
+
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        if: env.IS_FLOOR == 'true'
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      # Three ordered scanner steps, and the order is the whole point: round 2 found
+      # two scanners that captured an exit code and never acted on it. Scan, upload,
+      # then enforce — the enforcement step is separate so the upload cannot swallow it.
+      - name: composer scan
+        if: env.IS_FLOOR == 'true'
+        id: scan
+        run: |
+          set +e
+          composer scan
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: github/codeql-action/upload-sarif@a2983b8bed1923f44751c5c43237f479442827b3 # v3
+        if: ${{ always() && env.IS_FLOOR == 'true' && hashFiles('semgrep.sarif') != '' }}
+        with:
+          sarif_file: semgrep.sarif
+      - name: Scanner findings block the merge
+        if: env.IS_FLOOR == 'true'
+        run: |
+          echo "scanner exit code: ${{ steps.scan.outputs.code }}"
+          [ "${{ steps.scan.outputs.code }}" = "0" ]
+
+      - name: composer mutation — floor
+        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation }}
+        run: composer mutation
+
+  gate:
+    name: gate
+    # Load-bearing: without always() the gate is skipped when a needed job fails, and
+    # a skipped required check counts as satisfied.
+    if: always()
+    needs: [base, matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job succeeded
+        run: |
+          echo "base:   ${{ needs.base.result }}"
+          echo "matrix: ${{ needs.matrix.result }}"
+          [ "${{ needs.base.result }}" = "success" ] && [ "${{ needs.matrix.result }}" = "success" ]

@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # This repository holds the reusable workflows, so its caller resolves them locally
+  # with `./` — which pins them to the PR's own commit, exactly what a change to the
+  # pipeline needs to be tested against.
+  ci:
+    uses: ./.github/workflows/base.yml

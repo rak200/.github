@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a capability that does not exist yet
+labels: ["feature", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Anything substantial goes through the RFC process first.** Nothing enters the roadmap
+        without an accepted proposal — see
+        [devr's `docs/proposals/`](https://github.com/rak200/devr/tree/master/docs/proposals).
+        Use this template for a self-contained addition; if the idea reshapes a design, open a
+        proposal instead and link it here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you cannot do today, and why the workaround is unsatisfying.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: The API or behaviour you have in mind. A sketch is fine.
+    validations:
+      required: true
+  - type: input
+    id: rfc
+    attributes:
+      label: Related proposal
+      description: Link to the RFC, if one exists.
+    validations:
+      required: false

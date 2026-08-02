@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/rak200/.github/blob/master/SECURITY.md
+    about: Do not open an issue — use private vulnerability reporting.
+  - name: Design proposals (RFCs)
+    url: https://github.com/rak200/devr/tree/master/docs/proposals
+    about: Anything that reshapes a design is studied and decided as a proposal.
