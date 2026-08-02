@@ -14,9 +14,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # This repository holds the reusable workflows, so its caller resolves them locally
-  # with `./` — which pins them to the PR's own commit, exactly what a change to the
-  # pipeline needs to be tested against.
+  # The job MUST be named `ci` and the reusable workflow's last job `gate`: together
+  # they publish the required check `ci / gate`. Pin an exact tag, never a moving alias.
   ci:
     uses: ./.github/workflows/base.yml
     with:
