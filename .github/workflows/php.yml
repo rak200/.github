@@ -117,11 +117,16 @@ jobs:
       - name: README PHPStan badge matches the effective level
         if: env.IS_FLOOR == 'true'
         run: |
+          # `|| true` on both, and it is load-bearing: GitHub runs this with `bash -e`,
+          # under which `var=$(grep …)` that matches nothing kills the step on the spot,
+          # before one line of the diagnosis below can print. Measured on rak200/utils:
+          # the step failed with an empty log and exit 1, which is the same "fails
+          # without saying anything" shape this pipeline exists to eliminate.
           set -uo pipefail
           [ -f README.md ] || { echo "no README.md"; exit 0; }
-          level=$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist 2>/dev/null | head -1)
+          level=$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist 2>/dev/null | head -1 || true)
           [ -n "$level" ] || level=$(grep -oP '(?<=level:\s)\S+' \
-            vendor/rak200/coding-standard-php/phpstan.neon.dist 2>/dev/null | head -1)
+            vendor/rak200/coding-standard-php/phpstan.neon.dist 2>/dev/null | head -1 || true)
           [ -n "$level" ] || { echo "::error::no PHPStan level found locally or in the pinned standard"; exit 1; }
           shown=$(grep -oP 'img\.shields\.io/badge/PHPStan-level%20\K[^-)?]*(?=-)' README.md | head -1 || true)
           [ -n "$shown" ] || { echo "::error file=README.md::PHPStan badge is absent, but the effective level is '$level'"; exit 1; }
