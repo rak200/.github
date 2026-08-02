@@ -184,9 +184,17 @@ jobs:
         if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
         run: |
           set -uo pipefail
-          changed=$(git diff --name-only --diff-filter=d             "origin/${{ github.base_ref }}...HEAD" -- 'src/**/*.ts'             | grep -v '\.test\.ts$' | paste -sd, - || true)
+          # `-- src`, NOT `-- 'src/**/*.ts'`. A git pathspec is not a shell glob: by
+          # default `*` crosses `/`, so `src/**/*.ts` needs a literal `src//…` to match
+          # and quietly matches nothing. It matched nothing on the first pull request
+          # that reached it — five new source files, zero mutated, step green. The
+          # extension filter belongs in grep, where it means what it looks like.
+          base="origin/${{ github.base_ref }}"
+          touched=$(git diff --name-only --diff-filter=d "$base...HEAD" -- src | wc -l)
+          changed=$(git diff --name-only --diff-filter=d "$base...HEAD" -- src             | grep -E '\.ts$' | grep -v '\.test\.ts$' | paste -sd, - || true)
+          echo "the diff touches $touched file(s) under src/"
           if [ -z "$changed" ]; then
-            echo "no source file changed — nothing to mutate"
+            echo "no mutable source changed — nothing to mutate"
             exit 0
           fi
           echo "mutating: $changed"
