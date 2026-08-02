@@ -11,9 +11,11 @@ on:
   workflow_call:
     inputs:
       variant:
-        description: 'Scaffold variant whose seeds apply here: common | php | ts.'
+        description: >
+          Scaffold variant whose seeds apply here: none | php | ts | github. Rows marked
+          `all` in seeds.tsv apply to every repository regardless.
         type: string
-        default: common
+        default: none
       symbol-pattern:
         description: >
           Extended-regex whose first capture group is a public symbol name in src/.
@@ -70,7 +72,7 @@ jobs:
           checked=0
           while IFS=$'\t' read -r variant form seed dest; do
             case "$variant" in ''|'#'*) continue ;; esac
-            [ "$variant" = common ] || [ "$variant" = "$VARIANT" ] || continue
+            [ "$variant" = all ] || [ "$variant" = "$VARIANT" ] || continue
             src="$root/$seed"
             if [ ! -f "$src" ]; then
               echo "::error::scaffold is missing $seed (declared in seeds.tsv)"

@@ -19,3 +19,5 @@ jobs:
   # pipeline needs to be tested against.
   ci:
     uses: ./.github/workflows/base.yml
+    with:
+      variant: github
