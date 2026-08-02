@@ -1,0 +1,197 @@
+name: js
+
+# The TypeScript pipeline. Steps invoke verbs (npm run <verb>), never tools, which is
+# what lets this file and php.yml share a shape — see the RFC's Shared task vocabulary.
+# Read them side by side: the tools have nothing in common and the sequence is identical.
+
+on:
+  workflow_call:
+    inputs:
+      node-versions:
+        description: 'JSON array of Node majors. The first is the floor: single-run steps ride it.'
+        type: string
+        default: '["22", "24"]'
+      runs-on:
+        description: 'JSON array of runners. ubuntu-latest alone unless a repo has an OS-shaped reason.'
+        type: string
+        default: '["ubuntu-latest"]'
+      browser:
+        description: 'Install a Playwright browser for component tests. Off for a package with no DOM.'
+        type: boolean
+        default: true
+      mutation:
+        description: 'Run the mutation floor. Off for a repo that has not reached it yet.'
+        type: boolean
+        default: true
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  base:
+    uses: ./.github/workflows/base.yml
+    with:
+      variant: ts
+      # An exported class, interface, type, enum, function or const in src/.
+      symbol-pattern: '^\s*export\s+(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(?:class|interface|type|enum|function|const)\s+\w+'
+      publish-gate: false
+
+  matrix:
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      # Never fail-fast on a version matrix: the useful information is whether a
+      # failure is version-specific or general, and cancelling the siblings destroys it.
+      fail-fast: false
+      matrix:
+        node: ${{ fromJSON(inputs.node-versions) }}
+        os: ${{ fromJSON(inputs.runs-on) }}
+    permissions:
+      contents: read
+      security-events: write   # SARIF upload — not enforced on public repos
+      actions: read            # codeql-action reads the run — private repos only
+      id-token: write          # Codecov OIDC
+    env:
+      IS_FLOOR: ${{ matrix.node == fromJSON(inputs.node-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          submodules: recursive
+          fetch-depth: 0   # Stryker diffs against origin/master
+
+      # A library commits its lockfile — the taxonomy is Layer 1 — so `npm ci` is the
+      # install and setup-node's own npm cache is keyed on it. No separate cache step.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      # Layer 1 asserts the vocabulary. Unlike Composer, npm has no command a script can
+      # shadow — `npm run <verb>` always runs the script — so TypeScript declares all
+      # eight, `validate` included. The PHP carve-out is a Composer fact, not a rule.
+      - name: The task vocabulary is declared
+        if: env.IS_FLOOR == 'true'
+        run: |
+          set -uo pipefail
+          fail=0
+          for verb in validate lint fix analyse test coverage scan mutation; do
+            jq -e --arg v "$verb" '.scripts[$v] // empty' package.json >/dev/null \
+              || { echo "::error file=package.json::the '$verb' verb is not declared"; fail=1; }
+          done
+          [ "$fail" -eq 0 ] && echo "all eight verbs declared"
+          exit $fail
+
+      - name: README mirror badges match their sources
+        if: env.IS_FLOOR == 'true'
+        run: |
+          # Same reason php.yml carries its PHPStan claim: the source lives in the pinned
+          # Layer 2 config, and the conformance job has no node_modules to read it from.
+          # `|| true` throughout — GitHub runs this under `bash -e`, where an assignment
+          # from a grep that matches nothing kills the step before it can say why.
+          set -uo pipefail
+          [ -f README.md ] || { echo "no README.md"; exit 0; }
+          fail=0
+          shown=$(grep -oP 'img\.shields\.io/badge/node-%3E%3D\K[^-)?]*(?=-)' README.md | head -1 || true)
+          floor=$(jq -r '.engines.node // empty' package.json | grep -oP '\d+' | head -1 || true)
+          if [ -n "$floor" ]; then
+            [ -n "$shown" ] || { echo "::error file=README.md::Node badge is absent, but engines.node says '$floor'"; fail=1; }
+            [ -z "$shown" ] || [ "$shown" = "$floor" ] \
+              || { echo "::error file=README.md::Node badge says '$shown', engines.node says '$floor'"; fail=1; }
+          fi
+          echo "node badge '$shown' vs engines floor '$floor'"
+          exit $fail
+
+      - name: npm run validate
+        if: env.IS_FLOOR == 'true'   # the manifest is version-invariant
+        run: npm run validate
+
+      - name: npm run lint
+        if: env.IS_FLOOR == 'true'   # style is version-invariant
+        run: npm run lint
+
+      - name: npm run analyse
+        run: npm run analyse
+
+      # Component tests drive a real DOM. `--with-deps` pulls the system libraries the
+      # browser needs, which the runner image does not ship complete.
+      - name: Install the test browser
+        if: inputs.browser
+        run: npx playwright install --with-deps chromium
+
+      - name: npm run test
+        run: npm run test -- --coverage --coverage.reporter=clover --coverage.reporter=text
+
+      # The floor is enforced inside the job, from a file in the repo, so the required
+      # check never waits on a third party. Codecov below is reporting only.
+      - name: npm run coverage — floor
+        if: env.IS_FLOOR == 'true'
+        run: npm run coverage
+
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        if: env.IS_FLOOR == 'true'
+        with:
+          files: coverage/clover.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      # semgrep is a Python tool: nothing in the npm graph installs it, so without this
+      # step `npm run scan` exits 127 and the three-step dance below guards nothing.
+      # Pinned exactly, the way an action is pinned by SHA.
+      - name: Install semgrep
+        if: env.IS_FLOOR == 'true'
+        run: pipx install semgrep==1.172.0
+
+      # Three ordered scanner steps, and the order is the whole point: scan, upload,
+      # then enforce — the enforcement step is separate so the upload cannot swallow it.
+      - name: npm run scan
+        if: env.IS_FLOOR == 'true'
+        id: scan
+        run: |
+          set +e
+          npm run scan
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: github/codeql-action/upload-sarif@a2983b8bed1923f44751c5c43237f479442827b3 # v3
+        if: ${{ always() && env.IS_FLOOR == 'true' && hashFiles('semgrep.sarif') != '' }}
+        with:
+          sarif_file: semgrep.sarif
+      - name: Scanner findings block the merge
+        if: env.IS_FLOOR == 'true'
+        run: |
+          echo "scanner exit code: ${{ steps.scan.outputs.code }}"
+          [ "${{ steps.scan.outputs.code }}" = "0" ]
+
+      # Mutation runs over the CHANGED FILES on a pull request and in full off that path.
+      # A full run is tens of minutes on a real library, and a required check that slow is
+      # one people learn to route around. The vocabulary still has one mutation verb:
+      # Layer 1 owns the word, CI owns when and over what it runs.
+      - name: npm run mutation — floor (changed files)
+        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+        run: npm run mutation -- --since=origin/${{ github.base_ref }}
+
+      - name: npm run mutation — floor (full)
+        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+        run: npm run mutation
+
+  gate:
+    name: gate
+    # Load-bearing: without always() the gate is skipped when a needed job fails, and
+    # a skipped required check counts as satisfied.
+    if: always()
+    needs: [base, matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job succeeded
+        run: |
+          echo "base:   ${{ needs.base.result }}"
+          echo "matrix: ${{ needs.matrix.result }}"
+          [ "${{ needs.base.result }}" = "success" ] && [ "${{ needs.matrix.result }}" = "success" ]
