@@ -22,6 +22,13 @@ Three fields are load-bearing and each was earned by a measurement:
   workflow publishes `<caller job> / <callee job>`, and that is the name the ruleset must match.
   Requiring a bare `gate` waits for a check that is never published — the *absent check*
   deadlock: the pull request sits blocked forever with nothing red to read.
+- **The tag ruleset carries no `bypass_actors` at all**, and cannot: GitHub rejects
+  `bypass_mode: pull_request` on a tag ruleset outright — *"bypass mode must not be
+  'PULL_REQUEST' for tag rulesets"* — since a tag never goes through a pull request. `always`
+  would be the only accepted value, and nothing here needs it: the rules block **moving and
+  deleting** a tag, never **creating** one, so `release-please` cuts releases normally. Moving or
+  deleting a released tag is exactly what the bad-release procedure forbids in favour of a
+  forward fix, so there is no legitimate consumer for an exemption.
 - **The tag pattern is `refs/tags/[0-9]*`,** matching bare SemVer tags — the ecosystem's style.
   `update` is what makes a tag immutable; `non_fast_forward` alone lets a fast-forward move slip
   through.
