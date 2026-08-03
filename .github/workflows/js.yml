@@ -58,7 +58,7 @@ jobs:
     env:
       IS_FLOOR: ${{ matrix.node == fromJSON(inputs.node-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
           fetch-depth: 0   # Stryker diffs against origin/master
@@ -134,7 +134,7 @@ jobs:
         if: env.IS_FLOOR == 'true'
         run: npm run coverage
 
-      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         if: env.IS_FLOOR == 'true'
         with:
           files: coverage/clover.xml
@@ -159,7 +159,7 @@ jobs:
           npm run scan
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
-      - uses: github/codeql-action/upload-sarif@a2983b8bed1923f44751c5c43237f479442827b3 # v3
+      - uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
         if: ${{ always() && env.IS_FLOOR == 'true' && hashFiles('semgrep.sarif') != '' }}
         with:
           sarif_file: semgrep.sarif
