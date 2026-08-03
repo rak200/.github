@@ -1,62 +1,20 @@
 name: release
 
-# The release half of the model, and until the utils pilot it did not exist: the
-# scaffold shipped release-please-config.json and .release-please-manifest.json to
-# every repository, LIFECYCLE described the Release PR, and no workflow ever ran
-# release-please. Configuration for an automation nobody had wired.
-#
-# Language-agnostic on purpose. release-please reads `release-type` from the repo's
-# own config file, so PHP and TypeScript need the same three lines here.
+# Cuts releases from master: release-please reads the commit history, opens and
+# maintains a Release PR, and merging that PR cuts the bare tag and the GitHub
+# Release. The version is derived here and typed nowhere.
 
 on:
-  workflow_call:
-    inputs:
-      target-branch:
-        description: 'Branch to release from. Only a maintenance branch overrides it.'
-        type: string
-        default: master
-    outputs:
-      # Whatever happens after a release must happen in THIS run. A tag and a Release
-      # created with the repository's own GITHUB_TOKEN do not start a new workflow, so
-      # an `on: release: published` job would sit there and never fire. Anything that
-      # publishes therefore hangs off these outputs — see npm-publish.yml.
-      release_created:
-        description: 'The string "true" when this run cut a release. Empty otherwise.'
-        value: ${{ jobs.release-please.outputs.release_created }}
-      tag_name:
-        description: 'The tag just cut, e.g. `0.1.0`. Empty when no release was cut.'
-        value: ${{ jobs.release-please.outputs.tag_name }}
+  push:
+    branches: [master]
 
+# The caller caps what the called workflow may request. release-please cuts the tag
+# and the Release, and opens the Release PR, so it needs both — capped at read here,
+# it would `startup_failure` and never publish anything to notice.
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
-  release-please:
-    name: release-please
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write        # cut the tag and the GitHub Release
-      pull-requests: write   # open and maintain the Release PR
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
-      # The Release PR needs ONE human action before it can merge, and it is not the
-      # one this comment used to name. The claim here was that a PR opened by
-      # GITHUB_TOKEN publishes no checks at all, leaving a required check that never
-      # arrives — the absent-check deadlock the branch ruleset's admin bypass exists
-      # for. Measured on rak200/ui#3: a `pull_request` run IS created, actor
-      # github-actions[bot], and it completes attempt 1 with the conclusion
-      # `action_required` without executing. The check is HELD, not absent. Approve
-      # the run (attempt 2 then carries the approver as triggering_actor), the checks
-      # report normally, and the merge crosses `ci / gate` in SUCCESS with no bypass
-      # involved. So: approve the run, then merge it like any other PR. Do not reach
-      # for --admin — that skips the verification the approval was about to buy.
-      - id: release
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          target-branch: ${{ inputs.target-branch }}
+  release:
+    uses: rak200/.github/.github/workflows/release.yml@1.8.0
