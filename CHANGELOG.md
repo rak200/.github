@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/rak200/.github/compare/1.9.0...1.9.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* the mutation filter skipped every JavaScript source ([#19](https://github.com/rak200/.github/issues/19)) ([f65ec54](https://github.com/rak200/.github/commit/f65ec549e95541fdfc35201cd01285305ca8856e))
+
 ## [1.9.0](https://github.com/rak200/.github/compare/1.8.1...1.9.0) (2026-08-03)
 
 
