@@ -16,5 +16,10 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Relative, like ci.yml above it, and NOT a pinned `rak200/.github/...@tag`. This
+  # repository IS the baseline: an absolute self-reference can never name a current
+  # tag, because the release it is part of has not been cut yet. It sat at 1.8.0 while
+  # the repository released 1.9.1, and the pin-staleness check found it on its own
+  # first run — against the one repository the local rehearsal had not thought to try.
   release:
-    uses: rak200/.github/.github/workflows/release.yml@1.8.0
+    uses: ./.github/workflows/release.yml
