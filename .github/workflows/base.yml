@@ -62,6 +62,51 @@ jobs:
           echo "root=$root" >> "$GITHUB_OUTPUT"
           echo "using $root"
 
+      # Only rak200/.github has reusable workflows to check, and it is the one place a
+      # seed can land on top of one. The seeds pin these files by name; nothing before
+      # this asserted the named file was still callable.
+      #
+      # It would have caught the four-release outage the day it started. The `github`
+      # variant seeded the repository's own release CALLER to
+      # `.github/workflows/release.yml` — the path holding the reusable release
+      # workflow — and overwrote it at 1.8.1. Every tag from there on shipped an
+      # `on: push` caller under the name the whole estate pins, and the only repository
+      # that could notice was pinning @1.8.0, past the breakage. It surfaced four
+      # releases later, as a workflow calling itself.
+      #
+      # The set of reusable workflows is not hardcoded here: it is whatever the seeds
+      # pin. A workflow the scaffold tells repositories to call must be callable, and
+      # that is the entire assertion.
+      - name: Every workflow the seeds pin is callable
+        if: ${{ inputs.variant == 'github' }}
+        run: |
+          set -uo pipefail
+          root='${{ steps.scaffold.outputs.root }}'
+          names=$(grep -rhoE 'rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@' "$root" \
+            | sed -E 's#.*/##; s#@$##' | sort -u)
+          if [ -z "$names" ]; then
+            echo "::error::no seed pins a reusable workflow — either the scaffold is empty or this grep stopped matching, and both mean this check is asserting nothing"
+            exit 1
+          fi
+          fail=0
+          for name in $names; do
+            file=".github/workflows/$name"
+            if [ ! -f "$file" ]; then
+              echo "::error::the scaffold tells repositories to call $name, and it does not exist here"
+              fail=1
+              continue
+            fi
+            # `on:` may carry more than one trigger, so this asks whether the key is
+            # present rather than what the file's only trigger is.
+            if ! grep -qE '^[[:space:]]*workflow_call:' "$file"; then
+              echo "::error file=$file::the scaffold pins this as a reusable workflow, but it declares no workflow_call trigger — a caller of it gets an invalid-workflow error, not a run"
+              fail=1
+              continue
+            fi
+            echo "$name is callable"
+          done
+          exit $fail
+
       - name: Seeded files match the pinned scaffold
         env:
           VARIANT: ${{ inputs.variant }}
@@ -223,9 +268,15 @@ jobs:
       - name: The pinned pipeline is not obsolete
         run: |
           set -uo pipefail
+          # Anchored on `uses:`, because a pin is a directive and not merely the
+          # string. The first version matched anywhere in the file and read a comment
+          # explaining the convention — `…/release.yml@<tag>` — as a repository pinning
+          # a tag literally named `<tag>`. It failed on its first pull request after
+          # shipping, against prose describing the very rule it enforces.
           mapfile -t refs < <(
-            grep -rhoE 'rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@[^ ]+' \
-              .github/workflows/ 2>/dev/null | sort -u
+            grep -rhoE '^[[:space:]]*uses:[[:space:]]*rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@[^[:space:]]+' \
+              .github/workflows/ 2>/dev/null \
+              | sed -E 's#^[[:space:]]*uses:[[:space:]]*##' | sort -u
           )
           if [ "${#refs[@]}" -eq 0 ]; then
             echo "no rak200/.github reusable workflows are called from here"
