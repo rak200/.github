@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/rak200/.github/compare/1.8.1...1.9.0) (2026-08-03)
+
+
+### Features
+
+* the language pipelines take a variant, so the -config packages can use them ([#17](https://github.com/rak200/.github/issues/17)) ([25e4688](https://github.com/rak200/.github/commit/25e4688fdd0ceb66836cd990f959c9bf6a7b4353))
+
 ## [1.8.1](https://github.com/rak200/.github/compare/1.8.0...1.8.1) (2026-08-03)
 
 
