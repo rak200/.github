@@ -197,9 +197,17 @@ jobs:
           # and quietly matches nothing. It matched nothing on the first pull request
           # that reached it — five new source files, zero mutated, step green. The
           # extension filter belongs in grep, where it means what it looks like.
+          #
+          # `[jt]s`, not `ts`. This pipeline also runs the `ts-config` variant, whose
+          # product is the standard itself and is written in JavaScript — a `.ts` filter
+          # skips every file it owns and reports "nothing to mutate" on a green step,
+          # which is the same silent pass the pathspec above already caused once. A
+          # TypeScript library has no `.js` under src/ for this to widen, and if it ever
+          # does, that file wants mutating too. Each repository's Stryker config still
+          # bounds what is mutable; this only narrows the diff before handing it over.
           base="origin/${{ github.base_ref }}"
           touched=$(git diff --name-only --diff-filter=d "$base...HEAD" -- src | wc -l)
-          changed=$(git diff --name-only --diff-filter=d "$base...HEAD" -- src             | grep -E '\.ts$' | grep -v '\.test\.ts$' | paste -sd, - || true)
+          changed=$(git diff --name-only --diff-filter=d "$base...HEAD" -- src | grep -E '\.[jt]s$' | grep -vE '\.(test|spec)\.[jt]s$' | paste -sd, - || true)
           echo "the diff touches $touched file(s) under src/"
           if [ -z "$changed" ]; then
             echo "no mutable source changed — nothing to mutate"
