@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.0](https://github.com/rak200/.github/compare/1.9.1...1.10.0) (2026-08-03)
+
+
+### Features
+
+* a stale pipeline pin is a finding, not a habit ([#21](https://github.com/rak200/.github/issues/21)) ([ae5c8ca](https://github.com/rak200/.github/commit/ae5c8ca22e58c2b7aa915d83494fffb565b60020))
+
+
+### Bug Fixes
+
+* restore the reusable release workflow, and assert every pinned one is callable ([#22](https://github.com/rak200/.github/issues/22)) ([2918f43](https://github.com/rak200/.github/commit/2918f43d1267dd24e0a7e4acccdf908d07d4d0a6))
+
 ## [1.9.1](https://github.com/rak200/.github/compare/1.9.0...1.9.1) (2026-08-03)
 
 
