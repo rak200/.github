@@ -109,6 +109,19 @@ jobs:
               fail=1
             fi
           done
+
+          # 4. The `validate` verb exists. This job runs it right before publishing, so
+          #    the tarball is linted at the only moment that check is worth anything —
+          #    and without the script npm exits `Missing script: "validate"` at the last
+          #    step, after a full install, having given no warning. Measured on
+          #    rak200/coding-standard-ts, which declared no scripts at all: a `-config`
+          #    variant calls base.yml rather than js.yml, so the eight-verb assertion
+          #    never ran there and the omission survived indefinitely.
+          if ! jq -e '.scripts.validate // empty' package.json >/dev/null; then
+            echo "::error file=package.json::the 'validate' verb is not declared, and this job runs it before publishing — a package that publishes owes it"
+            fail=1
+          fi
+
           if [ "$fail" -eq 0 ]; then
             echo "nothing stands between this job and a tokenless publish"
           fi
