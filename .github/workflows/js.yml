@@ -7,6 +7,14 @@ name: js
 on:
   workflow_call:
     inputs:
+      variant:
+        description: >
+          Scaffold variant to grade the seeds against. The `-config` packages run this
+          same pipeline — they are npm/Composer packages that ship executable code, and
+          a package whose CI never installs it has no CI — but they own a different set
+          of seeds, so the variant cannot be baked in here.
+        type: string
+        default: 'ts'
       node-versions:
         description: 'JSON array of Node majors. The first is the floor: single-run steps ride it.'
         type: string
@@ -34,7 +42,7 @@ jobs:
   base:
     uses: ./.github/workflows/base.yml
     with:
-      variant: ts
+      variant: ${{ inputs.variant }}
       # An exported class, interface, type, enum, function or const in src/.
       symbol-pattern: '^\s*export\s+(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(?:class|interface|type|enum|function|const)\s+\w+'
       publish-gate: false

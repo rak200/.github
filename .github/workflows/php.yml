@@ -6,6 +6,14 @@ name: php
 on:
   workflow_call:
     inputs:
+      variant:
+        description: >
+          Scaffold variant to grade the seeds against. The `-config` packages run this
+          same pipeline — they are npm/Composer packages that ship executable code, and
+          a package whose CI never installs it has no CI — but they own a different set
+          of seeds, so the variant cannot be baked in here.
+        type: string
+        default: 'php'
       php-versions:
         description: 'JSON array of PHP versions. The first is the floor: single-run steps ride it.'
         type: string
@@ -33,7 +41,7 @@ jobs:
   base:
     uses: ./.github/workflows/base.yml
     with:
-      variant: php
+      variant: ${{ inputs.variant }}
       # A class, interface, enum, trait or public method name in src/.
       symbol-pattern: '^\s*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+|^\s*public\s+(?:static\s+)?function\s+\w+'
       publish-gate: false
