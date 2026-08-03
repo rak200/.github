@@ -52,23 +52,67 @@ jobs:
           ref: ${{ inputs.tag }}
           submodules: recursive
 
+      # NO `registry-url`, and that omission is the whole fix for the first publish this
+      # workflow ever attempted. `registry-url` makes setup-node write
+      #
+      #     //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+      #
+      # into .npmrc unconditionally. With no NODE_AUTH_TOKEN in the environment — which
+      # is the entire point of trusted publishing — that line resolves to an EMPTY
+      # token, npm considers the registry already authenticated, never attempts the OIDC
+      # exchange, and the registry answers an unauthenticated PUT with `404 Not Found`.
+      # Upstream: actions/setup-node#1551. The `404` is npm masking 401/403, and it is
+      # separately tracked as a bad diagnostic (npm/cli#9088) — it names the package, so
+      # it reads like the package does not exist, which is the one thing it is not.
+      #
+      # npm's own documented example carries `registry-url`. It is written for the token
+      # flow and does not survive being reused for the tokenless one. The default
+      # registry is already registry.npmjs.org, so dropping it costs nothing.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ inputs.node-version }}
-          registry-url: https://registry.npmjs.org
           cache: npm
 
-      # Trusted publishing needs npm >= 11.5.1. The runner's bundled npm satisfies it
-      # today on Node 24 and will not on an older floor, so the requirement is asserted
-      # rather than assumed: a silent fall back to "no credential found" is the exact
-      # looks-green shape this estate keeps removing.
-      - name: npm is new enough to publish without a token
+      # Everything the credential-less publish depends on, asserted before the publish
+      # rather than diagnosed after it. All three failures otherwise arrive as the same
+      # unhelpful 404, which is how the first one cost a release.
+      - name: The publish can actually authenticate
         run: |
           set -uo pipefail
+          fail=0
+
+          # 1. Trusted publishing needs npm >= 11.5.1. Node 24 ships npm 11; Node 22
+          #    ships npm 10, which does not speak the exchange at all.
           have=$(npm --version)
           echo "npm $have"
-          printf '11.5.1\n%s\n' "$have" | sort -V -C \
-            || { echo "::error::trusted publishing needs npm >= 11.5.1, this runner has $have"; exit 1; }
+          if ! printf '11.5.1\n%s\n' "$have" | sort -V -C; then
+            echo "::error::trusted publishing needs npm >= 11.5.1, this runner has $have"
+            fail=1
+          fi
+
+          # 2. The OIDC endpoint has to be reachable, which means id-token: write on
+          #    BOTH this job and the caller's — the caller's permissions block is the
+          #    ceiling, and capping it produces no error of its own.
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error::no OIDC token endpoint in the environment — id-token: write is missing from this job or from the caller job that invokes it"
+            fail=1
+          else
+            echo "OIDC token endpoint present"
+          fi
+
+          # 3. No auth token line anywhere, from any source. One empty token is enough
+          #    to make npm skip the exchange entirely.
+          for f in .npmrc "$HOME/.npmrc"; do
+            if [ -f "$f" ] && grep -q '_authToken' "$f"; then
+              echo "::error::$f sets _authToken — npm will use it instead of the OIDC exchange, and an empty one authenticates as nobody"
+              grep -n '_authToken' "$f" | sed 's/=.*/=<redacted>/'
+              fail=1
+            fi
+          done
+          if [ "$fail" -eq 0 ]; then
+            echo "nothing stands between this job and a tokenless publish"
+          fi
+          exit $fail
 
       - name: npm ci
         run: npm ci
