@@ -268,9 +268,15 @@ jobs:
       - name: The pinned pipeline is not obsolete
         run: |
           set -uo pipefail
+          # Anchored on `uses:`, because a pin is a directive and not merely the
+          # string. The first version matched anywhere in the file and read a comment
+          # explaining the convention — `…/release.yml@<tag>` — as a repository pinning
+          # a tag literally named `<tag>`. It failed on its first pull request after
+          # shipping, against prose describing the very rule it enforces.
           mapfile -t refs < <(
-            grep -rhoE 'rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@[^ ]+' \
-              .github/workflows/ 2>/dev/null | sort -u
+            grep -rhoE '^[[:space:]]*uses:[[:space:]]*rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@[^[:space:]]+' \
+              .github/workflows/ 2>/dev/null \
+              | sed -E 's#^[[:space:]]*uses:[[:space:]]*##' | sort -u
           )
           if [ "${#refs[@]}" -eq 0 ]; then
             echo "no rak200/.github reusable workflows are called from here"
