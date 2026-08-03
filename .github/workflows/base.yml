@@ -203,6 +203,96 @@ jobs:
           fi
           exit $fail
 
+      # The same hole as the step above, one level up, and it stayed open longer because
+      # the mask that keeps that step quiet is what hides this one. A seed's
+      # reusable-workflow pin is graded `masked:`, deliberately — bumping it in the
+      # scaffold must not redden every repository at once — so nothing anywhere compared
+      # the pin a repository actually runs against the pipeline that exists. Measured
+      # across the estate on 2026-08-03: four distinct pins across five repositories, and
+      # rak200/workflow, which distributes the seed, was six releases behind the version
+      # its own seed named.
+      #
+      # Dependabot cannot close this: round 3 of the design established that the updater
+      # does not bump `jobs.<id>.uses` at all, with a bare tag or a GitHub Release. The
+      # RFC therefore records the bump as a manual LIFECYCLE step — and a manual step
+      # nothing verifies is the shape this pipeline exists to eliminate.
+      #
+      # The rule is the seed rule, deliberately: fail when something this repository
+      # ACTUALLY RUNS moved, not when the pin is merely old. A pin behind by a release
+      # that touched another language's workflow is harmless and stays quiet.
+      - name: The pinned pipeline is not obsolete
+        run: |
+          set -uo pipefail
+          mapfile -t refs < <(
+            grep -rhoE 'rak200/\.github/\.github/workflows/[a-z0-9-]+\.yml@[^ ]+' \
+              .github/workflows/ 2>/dev/null | sort -u
+          )
+          if [ "${#refs[@]}" -eq 0 ]; then
+            echo "no rak200/.github reusable workflows are called from here"
+            exit 0
+          fi
+
+          # A blobless clone: this needs history and tags, not file contents, and
+          # `git show` fetches the handful of blobs it actually reads. No token — the
+          # baseline is public, and a check that needs credentials to say whether a
+          # pin is current is a check that stops working the first time one expires.
+          mirror="$RUNNER_TEMP/rak200-github"
+          git clone --quiet --filter=blob:none --no-checkout \
+            https://github.com/rak200/.github "$mirror"
+          latest=$(git -C "$mirror" tag --sort=-v:refname | head -1)
+          [ -n "$latest" ] || { echo "::error::the baseline repository has no tags"; exit 1; }
+          body() { git -C "$mirror" show "$2:.github/workflows/$1" 2>/dev/null; }
+
+          fail=0
+          for ref in "${refs[@]}"; do
+            file=${ref#rak200/.github/.github/workflows/}
+            pin=${file##*@}
+            file=${file%@*}
+
+            # A moving alias reaches here as a branch name and would otherwise sail
+            # through every comparison below, since it is never unequal to itself.
+            if ! printf '%s' "$pin" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::$file is pinned to '$pin', which is not a release tag — pin an exact tag, never a moving alias"
+              fail=1
+              continue
+            fi
+            if [ "$pin" = "$latest" ]; then
+              echo "$file@$pin is current"
+              continue
+            fi
+
+            # The closure, not the one file: js.yml and php.yml both delegate to
+            # base.yml, so a change there reaches a caller whose own file never moved.
+            # Resolved from the LATEST revision, because a workflow added since the pin
+            # is one this repository does not yet know it runs.
+            closure=("$file")
+            queue=("$file")
+            while [ "${#queue[@]}" -gt 0 ]; do
+              current=${queue[0]}
+              queue=("${queue[@]:1}")
+              while read -r called; do
+                [ -n "$called" ] || continue
+                for seen in "${closure[@]}"; do [ "$seen" = "$called" ] && continue 2; done
+                closure+=("$called")
+                queue+=("$called")
+              done < <(body "$current" "$latest" \
+                | grep -oE 'uses:[[:space:]]*\./\.github/workflows/[a-z0-9-]+\.yml' \
+                | grep -oE '[a-z0-9-]+\.yml$' | sort -u)
+            done
+
+            moved=()
+            for member in "${closure[@]}"; do
+              [ "$(body "$member" "$pin")" = "$(body "$member" "$latest")" ] || moved+=("$member")
+            done
+            if [ "${#moved[@]}" -gt 0 ]; then
+              echo "::error::$file is pinned at $pin and ${moved[*]} changed between $pin and $latest — this repository is running an obsolete pipeline"
+              fail=1
+            else
+              echo "$file@$pin is behind $latest, but nothing it runs has changed"
+            fi
+          done
+          exit $fail
+
       # A mirror badge is checked by anchoring on the shields.io badge KEY and reading
       # the value that follows it. The previous form anchored on a regex whose match
       # swallowed the trailing delimiter, so the extraction that followed it could not
