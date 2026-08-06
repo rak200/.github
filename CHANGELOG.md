@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/rak200/.github/compare/1.10.0...1.11.0) (2026-08-06)
+
+
+### Features
+
+* merge the baseline bump without a human, and split the branch ruleset to allow it ([#24](https://github.com/rak200/.github/issues/24)) ([1c646f7](https://github.com/rak200/.github/commit/1c646f7727fbd308612720e6b8d38aac27a7728b))
+
 ## [1.10.0](https://github.com/rak200/.github/compare/1.9.1...1.10.0) (2026-08-03)
 
 
