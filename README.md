@@ -1,5 +1,7 @@
 # rak200/.github
 
+[![Latest tag](https://img.shields.io/github/v/tag/rak200/.github?sort=semver)](https://github.com/rak200/.github/tags)
+
 The GitHub-native machinery of the rak200 ecosystem: what the platform itself reads.
 
 | What | Where | How it reaches a repository |
