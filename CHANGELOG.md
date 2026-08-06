@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/rak200/.github/compare/1.11.0...1.11.1) (2026-08-06)
+
+
+### Reverts
+
+* drop the reusable auto-merge workflow and put the branch rules back in one ruleset ([#28](https://github.com/rak200/.github/issues/28)) ([c9412d0](https://github.com/rak200/.github/commit/c9412d05b9da8e3a536810a9ac3e4a8c9faa2542))
+
 ## [1.11.0](https://github.com/rak200/.github/compare/1.10.0...1.11.0) (2026-08-06)
 
 
