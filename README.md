@@ -46,6 +46,16 @@ gate that looked green and enforced nothing: **`if: always()`** (omit it and a s
 check counts as *satisfied*) and **equality with `success`** (inequality with `failure` lets a
 cancelled run through).
 
+## Changing the pipeline
+
+This repository's own caller resolves the workflows with `./`, which pins them to the pull
+request's commit — so a change to `base.yml` is exercised by the pull request that makes it. That
+covers the **shape**, not the languages: a change to `php.yml` or `js.yml` is only genuinely tested
+by a pull request in a repository of that language, pointing at the branch.
+
+**A gate that has never failed has never been tested.** After changing one, make it fail on purpose
+once and confirm it blocks; `.rak200/LIFECYCLE.md` §4.3 carries the canary for each gate.
+
 ## Versioning
 
 Tags are bare SemVer (`1.0.0`, no `v`). Consumers pin an exact tag: pipeline releases and
