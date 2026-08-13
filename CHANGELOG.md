@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/rak200/.github/compare/1.11.1...1.12.0) (2026-08-13)
+
+
+### Features
+
+* the PR title is checked, because the title is the commit ([#36](https://github.com/rak200/.github/issues/36)) ([fb17904](https://github.com/rak200/.github/commit/fb1790482105d6ebe4da6cf2a72b513470ad754d))
+
 ## [1.11.1](https://github.com/rak200/.github/compare/1.11.0...1.11.1) (2026-08-06)
 
 
