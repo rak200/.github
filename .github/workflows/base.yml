@@ -415,6 +415,55 @@ jobs:
           [ "$fail" -eq 0 ] && echo "every public symbol is documented"
           exit $fail
 
+      # The merge is squash-only and the squash message is the PR title, so the title IS
+      # the commit — and it is the exact input release-please reads to derive the next
+      # version and changelog. RFC 0017 has specified this check from its first revision
+      # ("a CI check validates the title against the grammar") and nothing ever
+      # implemented it. The failure it leaves open is silent in the worst way: `feature:`
+      # for `feat:` does not produce a wrong bump, it produces NO bump, and no gate
+      # anywhere says so — the release simply does not happen.
+      #
+      # The eleven types are the stock `type-enum` of @commitlint/config-conventional,
+      # adopted without override. This is not commitlint, and the divergence is stated
+      # here rather than discovered later: it asserts the grammar, the type set, a
+      # non-empty subject, no trailing full stop and the 100-character header limit — the
+      # rules that bind a title that is also a commit. It does not replicate `subject-case`
+      # or the body and footer rules, which have no referent when the header is the whole
+      # message. Bash, because this file is the language-agnostic half and carries no
+      # package manager to run a Node tool from.
+      #
+      # Every branch below reports its own reason. A single "invalid title" would send the
+      # author back to a grammar to diff their string against, which is the shape of error
+      # message this pipeline keeps removing.
+      - name: The PR title is a Conventional Commit
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -uo pipefail
+          types='feat|fix|perf|refactor|style|docs|test|build|ci|chore|revert'
+          echo "title: $PR_TITLE"
+          fail=0
+          # `if !` and never a bare test: GitHub runs this under `bash -e`, where a test
+          # returning false ends the step before the diagnosis prints. That has already
+          # cost this pipeline two steps.
+          if ! printf '%s' "$PR_TITLE" | grep -qE "^($types)(\([^()]+\))?!?: [^[:space:]]"; then
+            echo "::error::title is not 'type(scope)?: subject' — type must be one of: ${types//|/, }. A '!' before the colon marks a breaking change."
+            fail=1
+          fi
+          if printf '%s' "$PR_TITLE" | grep -qE '\.$'; then
+            echo "::error::title ends in a full stop — it becomes a commit subject, which carries none"
+            fail=1
+          fi
+          if [ "${#PR_TITLE}" -gt 100 ]; then
+            echo "::error::title is ${#PR_TITLE} characters, over the 100-character header limit"
+            fail=1
+          fi
+          if [ "$fail" -eq 0 ]; then
+            echo "title is a valid Conventional Commit header"
+          fi
+          exit $fail
+
       - name: Delivered roadmap entries are pruned
         if: github.event_name == 'pull_request'
         env:
