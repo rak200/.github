@@ -177,6 +177,73 @@ jobs:
           echo "scanner exit code: ${{ steps.scan.outputs.code }}"
           [ "${{ steps.scan.outputs.code }}" = "0" ]
 
+      # CodeQL, `security-extended`, and it is here because RFC 0017's *Code scanning*
+      # decides it for JS/TS and this file ran semgrep instead. Not a decision that was
+      # taken and reversed — one that was never taken: `js.yml` was born by copying
+      # `php.yml`'s shape, and the scanner came along with the shape. The PR that wrote it
+      # says "the tools have nothing in common" in the same breath that made the scanning
+      # tool identical on both sides.
+      #
+      # Semgrep stays. It is the `scan` verb, it runs locally, and the vocabulary requires
+      # the verb to exist — CodeQL is an Action and can never be `npm run scan`. The two
+      # decisions only compose by keeping both, so both are kept and the reason is here
+      # rather than in whoever next wonders why.
+      #
+      # WHAT CODEQL BUYS that semgrep OSS structurally cannot: interprocedural taint,
+      # across files. The RFC records pattern-matching-per-file as the accepted price on
+      # the PHP side, where there is no alternative. On JS/TS there is one, and it was
+      # dropped without the price ever being named.
+      #
+      # THREE ORDERED STEPS, for the same reason as semgrep above and one more: `analyze`
+      # has NO fail-on-findings input — checked against the pinned action's own
+      # `action.yml`. It writes alerts and exits 0. A repository that merely calls it has
+      # a scanner that reports and a gate that cannot fail, which is the shape this
+      # pipeline exists to eliminate. The `Code scanning results` check GitHub publishes
+      # does fail, but it cannot be required by name: it exists on public repositories and
+      # not on private ones, so requiring it deadlocks every private repo — the same
+      # argument the RFC already makes for `Semgrep OSS`.
+      - name: CodeQL init
+        if: env.IS_FLOOR == 'true'
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: CodeQL analyse and publish
+        if: env.IS_FLOOR == 'true'
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          output: codeql-results
+          upload: always
+
+      # Fails on `error` level only, matching the rule the RFC states for the other
+      # scanner: an ERROR blocks, a WARNING surfaces as an alert and does not. Reading the
+      # SARIF rather than the alert API on purpose — the gate must not depend on a service
+      # answering, per *Secrets*, and an alert query needs a token and a visibility the
+      # private repos do not share.
+      - name: CodeQL findings block the merge
+        if: env.IS_FLOOR == 'true'
+        run: |
+          set -uo pipefail
+          shopt -s nullglob
+          reports=(codeql-results/*.sarif)
+          if [ "${#reports[@]}" -eq 0 ]; then
+            echo "::error::CodeQL produced no SARIF — the analysis did not run, and a scanner that did not run is not a scanner that found nothing"
+            exit 1
+          fi
+          fail=0
+          for report in "${reports[@]}"; do
+            errors=$(jq '[.runs[].results[]? | select(.level == "error")] | length' "$report")
+            total=$(jq '[.runs[].results[]?] | length' "$report")
+            echo "$report: $total results, $errors at error level"
+            if [ "$errors" -gt 0 ]; then
+              jq -r '.runs[].results[]? | select(.level == "error")
+                     | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri),line=\(.locations[0].physicalLocation.region.startLine)::\(.ruleId): \(.message.text)"' "$report"
+              fail=1
+            fi
+          done
+          exit $fail
+
       # Mutation runs over the CHANGED FILES on a pull request and in full off that path.
       # A full run is tens of minutes on a real library, and a required check that slow is
       # one people learn to route around. The vocabulary still has one mutation verb:
