@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/rak200/.github/compare/1.12.0...1.13.0) (2026-08-14)
+
+
+### Features
+
+* CodeQL runs on the JS side, as the RFC decided and this file never did ([#38](https://github.com/rak200/.github/issues/38)) ([ab5b924](https://github.com/rak200/.github/commit/ab5b924f33c40010b0a651564cd654adada0c4b1))
+
 ## [1.12.0](https://github.com/rak200/.github/compare/1.11.1...1.12.0) (2026-08-13)
 
 
