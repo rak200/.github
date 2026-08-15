@@ -1,0 +1,53 @@
+name: self-test
+
+# This repository running its own reusable workflows against a minimal package.
+#
+# RFC 0017 commits to this under *Reusable-workflow layout* and it was never built, which
+# was found the hard way: the CodeQL change in 1.13.0 had to be validated by opening a
+# throwaway pull request on a consumer and reading its log — the exact hand-rolled
+# round-trip this file exists to replace. Static analysis catches an invalid workflow; it
+# catches none of round 2's *looks green, enforces nothing* defects, and every one of those
+# was found by running the pipeline rather than reading it.
+#
+# NOT the required check, and the mechanism is worth stating because it is easy to break.
+# A reusable workflow's checks are named `<calling job> / <called job>`, so the required
+# `ci / gate` comes from the job named `ci` in `ci.yml`. The job below is named `php`,
+# which publishes `self-test / php / gate` and cannot collide. **Never name a job here
+# `ci`** — that would publish a second check called `ci / gate`, and the ruleset requires
+# that name, so a fixture failure would start blocking every merge in this repository.
+#
+# A red here therefore blocks nothing by itself. That is a deliberate limit, not an
+# oversight: making it required would let a fixture's flake stop a documentation typo from
+# merging. It is read, and it is read on every pull request.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # `run-base: false` on both, and the reason is the same in each: `base.yml` is
+  # repository-scoped — seed drift, submodule pin, README badges, roadmap pruning, secret
+  # scanning — and none of it has a referent inside a fixture directory. Pointed here it
+  # would grade THIS repository's root against the `php` or `ts` variant it does not use,
+  # and fail for a reason that says nothing about the pipeline under test. `ci.yml` already
+  # runs `base.yml` against this repository under its own `github` variant, which is the
+  # only correct way to run it here.
+  php:
+    name: php.yml against tests/fixtures/php-min
+    uses: ./.github/workflows/php.yml
+    with:
+      working-directory: tests/fixtures/php-min
+      run-base: false
+      # One runner and one version. The matrix exists in a consumer to tell a
+      # version-specific failure from a general one; here there is no library to be
+      # compatible with, and a second leg would only double the minutes.
+      php-versions: '["8.4"]'

@@ -1,0 +1,58 @@
+{
+    "name": "rak200/php-min",
+    "description": "A minimal PHP package that passes every floor, so php.yml can be exercised against something before a consumer is.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "rak200",
+            "email": "rak.ricardo@windowslive.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rak200\\PhpMin\\": "src/"
+        }
+    },
+    "repositories": [
+        { "type": "vcs", "url": "https://github.com/rak200/coding-standard-php" }
+    ],
+    "require-dev": {
+        "rak200/coding-standard-php": "^0.3.4"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rak200\\PhpMin\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "infection/extension-installer": true
+        }
+    },
+    "scripts": {
+        "lint": "php-cs-fixer fix --dry-run --diff",
+        "fix": "php-cs-fixer fix",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "coverage": "coverage-floor",
+        "scan": "rak200-scan",
+        "mutation": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv XDEBUG_MODE=coverage",
+            "infection --threads=max"
+        ]
+    },
+    "scripts-descriptions": {
+        "lint": "Formatting, check-only",
+        "fix": "Formatting, applied — the only local-only verb",
+        "analyse": "Static analysis",
+        "test": "The suite",
+        "coverage": "The coverage floor, from .coverage-floor",
+        "scan": "The security scanner, from Layer 2 (semgrep itself is installed outside Composer)",
+        "mutation": "The mutation floor; CI narrows it to the changed lines on a pull request"
+    }
+}

@@ -30,6 +30,25 @@ on:
         description: 'Run the mutation floor. Off for a repo that has not reached it yet.'
         type: boolean
         default: true
+      working-directory:
+        description: >
+          The package to run the verbs in, relative to the repository root. A consumer
+          never sets this: its package IS its repository. It exists for this repository's
+          own self-test, which runs the pipeline against tests/fixtures/php-min so that a
+          breaking edit here fails in THIS repo's pull request rather than surfacing weeks
+          later in one consumer's bump PR — the mitigation the RFC names for the exact-pin
+          decision's one real cost.
+        type: string
+        default: '.'
+      run-base:
+        description: >
+          Run the language-agnostic conformance job. Off only for the self-test, where
+          `base.yml` would grade THIS repository's root against the `php` variant it does
+          not use. Conformance is repository-scoped by nature — seeds, submodule pin,
+          badges, roadmap, secrets — and none of it has a referent inside a fixture
+          directory, which is why the self-test exercises the verbs and not this.
+        type: boolean
+        default: true
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -39,6 +58,7 @@ permissions:
 
 jobs:
   base:
+    if: ${{ inputs.run-base }}
     uses: ./.github/workflows/base.yml
     with:
       variant: ${{ inputs.variant }}
@@ -64,6 +84,12 @@ jobs:
       id-token: write          # Codecov OIDC
     env:
       IS_FLOOR: ${{ matrix.php == fromJSON(inputs.php-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
+    # Every `run:` step lands in the package under test. Steps that hand a path to an
+    # ACTION are not covered by this — actions resolve against the workspace root — so
+    # those few carry the prefix explicitly below, and each one is marked.
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,7 +115,8 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-${{ matrix.os }}-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          # hashFiles resolves against the workspace root, not `defaults.run`.
+          key: composer-${{ matrix.os }}-php${{ matrix.php }}-${{ hashFiles(format('{0}/composer.json', inputs.working-directory)) }}
           restore-keys: |
             composer-${{ matrix.os }}-php${{ matrix.php }}-
 
@@ -161,7 +188,8 @@ jobs:
       - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         if: env.IS_FLOOR == 'true'
         with:
-          files: coverage.xml
+          # An action path: workspace-root relative, so it carries the prefix itself.
+          files: ${{ inputs.working-directory }}/coverage.xml
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -187,9 +215,11 @@ jobs:
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
       - uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
-        if: ${{ always() && env.IS_FLOOR == 'true' && hashFiles('semgrep.sarif') != '' }}
+        # Both are workspace-root relative — the guard and the upload must agree, or a
+        # renamed report does not fail, it silently uploads nothing.
+        if: ${{ always() && env.IS_FLOOR == 'true' && hashFiles(format('{0}/semgrep.sarif', inputs.working-directory)) != '' }}
         with:
-          sarif_file: semgrep.sarif
+          sarif_file: ${{ inputs.working-directory }}/semgrep.sarif
       - name: Scanner findings block the merge
         if: env.IS_FLOOR == 'true'
         run: |
@@ -228,6 +258,14 @@ jobs:
     steps:
       - name: Every job succeeded
         run: |
-          echo "base:   ${{ needs.base.result }}"
+          echo "base:   ${{ needs.base.result }} (expected: ${{ inputs.run-base && 'success' || 'skipped' }})"
           echo "matrix: ${{ needs.matrix.result }}"
-          [ "${{ needs.base.result }}" = "success" ] && [ "${{ needs.matrix.result }}" = "success" ]
+          # Equality with the EXPECTED result, never inequality with 'failure'. Accepting
+          # 'skipped' unconditionally would have been the short way to let the self-test
+          # through, and it would have folded a base job that silently never ran into a
+          # green gate — the exact reading this line exists to refuse. So the expectation
+          # comes from the input: when base is asked for it must have succeeded, and when
+          # it is not it must be exactly skipped. A base job that fails is red either way,
+          # and one that vanishes when it was expected is red too.
+          [ "${{ needs.base.result }}" = "${{ inputs.run-base && 'success' || 'skipped' }}" ] \
+            && [ "${{ needs.matrix.result }}" = "success" ]
