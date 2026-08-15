@@ -26,8 +26,19 @@ on:
   pull_request:
     branches: [master]
 
+# A caller CAPS the permissions of what it calls: a job in the reusable workflow asking
+# for more than this gets `startup_failure` and publishes NO check at all. The `ci.yml`
+# seed says exactly that, and this file still shipped its first revision with
+# `contents: read` alone — copied from this repository's own `ci.yml`, which needs no more
+# because it only calls `base.yml`. `php.yml` uploads SARIF and authenticates to Codecov by
+# OIDC, so the run died before a single job started, and the only signal was a self-test
+# check that never appeared. That is the failure mode this workflow exists to catch in a
+# consumer, reproduced here on its first run.
 permissions:
   contents: read
+  security-events: write   # SARIF upload from the scanner
+  actions: read            # codeql-action reads the run (private repos)
+  id-token: write          # Codecov OIDC
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
