@@ -483,10 +483,47 @@ jobs:
           done
           exit $fail
 
+      # The detective half of secret scanning; the preventive half is the seeded
+      # .githooks/pre-push. Both fired as canaries on rak200/utils on 2026-08-15, and the
+      # run's log is why the two env vars below exist — see RFC 0017, *Closing what the
+      # campaign opened*.
+      #
+      # A third layer sits above both and belongs to neither: GitHub push protection
+      # rejects high-confidence partner patterns at the remote, before any workflow runs.
+      # This step is not redundant with it — gitleaks' default ruleset is broader and
+      # provider-agnostic, so this is the layer that catches what has no vendor behind it.
+      # The canary only reached this step by planting a secret push protection has no
+      # pattern for.
       - name: gitleaks
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+          # Pinned, because the action otherwise installs a hard-coded default — 8.24.3 —
+          # while the pre-push hook runs whatever the operator has locally. One control,
+          # two halves, two rule sets, free to diverge: a rule present in one and absent
+          # in the other means a secret caught locally sails through CI, or the reverse,
+          # and neither half would report anything odd. Pinning the action is half the
+          # fix; the hook side is per-clone state no workflow can reach, so the version
+          # belongs in the onboarding checklist beside `core.hooksPath`.
+          #
+          # Bump this deliberately, the way any pin here is bumped.
+          GITLEAKS_VERSION: 8.30.1
+
+          # The action tries to comment on the pull request and cannot: this workflow
+          # grants `contents: read` and nothing else, so the attempt fails with
+          # `Resource not accessible by integration` — twice, as a WARNING, which surfaces
+          # nowhere. It was found only by reading the log of a step that had failed for a
+          # different reason.
+          #
+          # Turned off rather than granted, and the choice is the estate's own principle
+          # rather than convenience. `pull-requests: write` on the shared pipeline widens
+          # the token in every consumer repository, permanently, to decorate a result the
+          # required check already carries: the step reddens `ci / gate`, names the file,
+          # the line and the rule, and uploads the SARIF. A comment adds no information and
+          # costs a permission — the wrong side of the trade this document argues for under
+          # *Security of an automated no-PR fan-out*.
+          GITLEAKS_ENABLE_COMMENTS: false
 
   gate:
     name: gate
