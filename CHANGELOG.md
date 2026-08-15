@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/rak200/.github/compare/1.13.0...1.13.1) (2026-08-15)
+
+
+### Bug Fixes
+
+* the gitleaks step pins its scanner and stops failing to comment ([#40](https://github.com/rak200/.github/issues/40)) ([974e717](https://github.com/rak200/.github/commit/974e717b1b1fd120d95d3d600855bf83913ef279))
+
 ## [1.13.0](https://github.com/rak200/.github/compare/1.12.0...1.13.0) (2026-08-14)
 
 
