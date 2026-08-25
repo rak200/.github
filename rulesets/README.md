@@ -9,10 +9,22 @@ gh api -X POST repos/rak200/<repo>/rulesets --input rulesets/branch.json
 gh api -X POST repos/rak200/<repo>/rulesets --input rulesets/tag.json
 ```
 
-**Read it back with `scripts/check-rulesets.sh` in `rak200/workflow`, not with a listing.** The
-read-back that used to live here printed `{name,target,enforcement}` — it proved two rulesets
-existed and nothing about what they contained. That is how the four parameters below sat on the
-rule deciding who may merge, unchosen and unreported, until one of them was found by accident.
+```bash
+scripts/check-rulesets.sh rak200/<repo>            # read it back, by COMPARISON
+scripts/check-rulesets.sh rak200/utils rak200/ui   # …or sweep the estate
+```
+
+**The read-back is a comparison, not a listing.** What used to stand here printed
+`{name,target,enforcement}` — it proved two rulesets existed and nothing about what they contained.
+That is how the four parameters below sat on the rule deciding who may merge, unchosen and
+unreported, until one was found by accident and a fourth was found by the checker on its first run.
+
+`check-rulesets.sh` compares in **both** directions: a declared parameter whose value differs, and
+**a parameter GitHub applied that this file never declared**. It lives here, beside the JSON it
+grades, so the declaration and the check ship as one thing and no network call can disagree with
+the copy being read. It is **not** a required check — a platform default arrives everywhere at
+once, and a gate on it reddens every repository simultaneously for something absent from the pull
+request.
 
 Each of the following was earned by a measurement:
 
