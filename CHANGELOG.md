@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/rak200/.github/compare/1.13.1...1.14.0) (2026-08-25)
+
+
+### Features
+
+* declare the four ruleset parameters GitHub was injecting ([#48](https://github.com/rak200/.github/issues/48)) ([87ac093](https://github.com/rak200/.github/commit/87ac093867c37c0fd7d67fe9463618252d9a5bbd))
+
 ## [1.13.1](https://github.com/rak200/.github/compare/1.13.0...1.13.1) (2026-08-15)
 
 
