@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/rak200/.github/compare/1.14.0...1.15.0) (2026-08-25)
+
+
+### Features
+
+* the ruleset read-back compares, and ships beside what it compares against ([#50](https://github.com/rak200/.github/issues/50)) ([72090c8](https://github.com/rak200/.github/commit/72090c8764fed8234d752b1bff00fa3420b7fe21))
+
 ## [1.14.0](https://github.com/rak200/.github/compare/1.13.1...1.14.0) (2026-08-25)
 
 
