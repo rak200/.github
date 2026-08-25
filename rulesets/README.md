@@ -7,10 +7,14 @@ organization rulesets need an organization.
 ```bash
 gh api -X POST repos/rak200/<repo>/rulesets --input rulesets/branch.json
 gh api -X POST repos/rak200/<repo>/rulesets --input rulesets/tag.json
-gh api repos/rak200/<repo>/rulesets --jq '[.[] | {name,target,enforcement}]'   # read it back
 ```
 
-Three fields are load-bearing and each was earned by a measurement:
+**Read it back with `scripts/check-rulesets.sh` in `rak200/workflow`, not with a listing.** The
+read-back that used to live here printed `{name,target,enforcement}` — it proved two rulesets
+existed and nothing about what they contained. That is how the four parameters below sat on the
+rule deciding who may merge, unchosen and unreported, until one of them was found by accident.
+
+Each of the following was earned by a measurement:
 
 - **`bypass_actors` must be declared.** A repository admin is *not* implicitly exempt; without
   this entry even `--admin` cannot merge the Release PR, whose required check is absent by
@@ -31,6 +35,23 @@ Three fields are load-bearing and each was earned by a measurement:
   workflow publishes `<caller job> / <callee job>`, and that is the name the ruleset must match.
   Requiring a bare `gate` waits for a check that is never published — the *absent check*
   deadlock: the pull request sits blocked forever with nothing red to read.
+- **GitHub injects parameters this file does not send, so everything is declared explicitly.**
+  Measured 2026-08-24 on a throwaway ruleset: a `POST` of five `pull_request` parameters is
+  stored as **eight**, and a `PUT` of the same five re-injects the extras rather than removing
+  them. **A ruleset cannot be returned to its declaration by re-applying the file** — the only
+  lever is to declare the value wanted, which does stick. Four were arriving undeclared and are
+  now named here:
+  - `allowed_merge_methods` defaulted to `["merge","squash","rebase"]` and is declared
+    `["squash"]`. It was never an open door — `allow_merge_commit` and `allow_rebase_merge` are
+    `false` in the repository settings, and the narrower constraint wins — but **two layers were
+    stating the same policy and disagreeing**, with the disagreeing one undeclared.
+  - `require_extra_approval_for_unattributed_changes` defaulted to `true` and is kept `true`.
+    RFC 0017 `E.29` measured that it does not fire on a commit whose git author matches no
+    account, so it grades nothing today; it is kept because it costs nothing and may matter once
+    a second identity exists.
+  - `required_reviewers` (`[]`) and `do_not_enforce_on_create` (`false`) are declared at their
+    defaults, so that a future change to either is a diff rather than a silence.
+
 - **The tag ruleset carries no `bypass_actors` at all**, and cannot: GitHub rejects
   `bypass_mode: pull_request` on a tag ruleset outright — *"bypass mode must not be
   'PULL_REQUEST' for tag rulesets"* — since a tag never goes through a pull request. `always`
