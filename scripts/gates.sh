@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # The gate inventory, derived from the workflows rather than maintained beside them.
 #
 #   gates.sh              — check the manifest against the workflows, then print the inventory
@@ -14,6 +14,9 @@
 # gates.tsv fails this, so a gate added to the pipeline cannot escape the inventory in
 # silence. A row with no step fails it too — an inventory naming a gate that no longer
 # exists is a canary owed against nothing.
+# bash, not sh: the manifest comparison uses process substitution, which dash does not parse.
+# Caught by CI rather than locally, because every local run typed `bash gates.sh` and never
+# the path alone — the invocation was the untested part, not the logic.
 set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
