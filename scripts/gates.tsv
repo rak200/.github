@@ -1,0 +1,71 @@
+# workflow	job	step	class	condition
+#
+# The inventory of what this pipeline actually grades, and the manifest that keeps it from
+# going stale. Every named step in base.yml, php.yml and js.yml has a row; `gates.sh`
+# fails when the workflows contain a step this file does not, so a gate added to the
+# pipeline cannot escape the inventory in silence. Same idiom as scaffold/seeds.tsv in
+# rak200/workflow: the manifest is what makes it a seed.
+#
+# Written because reconciling by hand does not hold. RFC 0017 step 0 read the pipeline on
+# 2026-08-12 and found the canary list was "about to fire eight shots at a target that has
+# changed shape", putting the real inventory at roughly seventeen. Thirteen days later it
+# was wrong again. A list maintained beside the thing it describes drifts from it; a list
+# derived from it cannot.
+#
+# class    gate       its failure means the REPOSITORY is wrong — the thing a canary fires at
+#          report     runs a tool and records the result WITHOUT gating; a separate step
+#                     grades it. Called out rather than folded into `gate` because a report
+#                     that silently stops working is the estate's own `looks green, enforces
+#                     nothing` shape, and it is invisible by construction: the step is green
+#                     either way
+#          setup      its failure means the RUNNER or the network is wrong, not the repo
+#          aggregate  republishes other jobs' results; the required check `ci / gate`
+#
+# A `gate` row is a canary owed. `report`, `setup` and `aggregate` rows are not — but the
+# step that grades a `report` is, and it is the one worth firing at, because a green report
+# and a green grader are indistinguishable from a working control.
+base	conformance	Locate the scaffold	gate	
+base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}
+base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}
+base	conformance	Seeded files match the pinned scaffold	gate	
+base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}
+base	conformance	The pinned pipeline is not obsolete	gate	
+base	conformance	README mirror badges match their sources	gate	
+base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''
+base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'
+base	conformance	Delivered roadmap entries are pruned	gate	github.event_name == 'pull_request'
+base	conformance	gitleaks	gate	
+base	gate	Every job succeeded	aggregate	
+php	matrix	composer validate	gate	
+php	matrix	Composer cache directory	setup	
+php	matrix	composer install	gate	
+php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
+php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'
+php	matrix	composer lint	gate	env.IS_FLOOR == 'true'
+php	matrix	composer analyse	gate	
+php	matrix	composer test	gate	
+php	matrix	composer coverage — floor	gate	env.IS_FLOOR == 'true'
+php	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'
+php	matrix	composer scan	report	env.IS_FLOOR == 'true'
+php	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
+php	matrix	composer mutation — floor (changed lines)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+php	matrix	composer mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+php	gate	Every job succeeded	aggregate	
+js	matrix	npm ci	gate	
+js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
+js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'
+js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'
+js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'
+js	matrix	npm run analyse	gate	
+js	matrix	Install the test browser	setup	inputs.browser
+js	matrix	npm run test	gate	
+js	matrix	npm run coverage — floor	gate	env.IS_FLOOR == 'true'
+js	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'
+js	matrix	npm run scan	report	env.IS_FLOOR == 'true'
+js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
+js	matrix	CodeQL init	setup	env.IS_FLOOR == 'true'
+js	matrix	CodeQL analyse and publish	report	env.IS_FLOOR == 'true'
+js	matrix	CodeQL findings block the merge	gate	env.IS_FLOOR == 'true'
+js	matrix	npm run mutation — floor (changed files)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+js	matrix	npm run mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+js	gate	Every job succeeded	aggregate	

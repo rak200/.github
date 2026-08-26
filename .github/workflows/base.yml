@@ -107,6 +107,21 @@ jobs:
           done
           exit $fail
 
+      # Only rak200/.github holds the workflows, so only it can check them against the
+      # inventory that says what they grade. Rides `ci / gate` rather than publishing a
+      # check of its own: a second required context would deadlock every other repository,
+      # which never publishes it.
+      #
+      # RFC 0017 step 5 fires "a canary per gate" against a list that named eight. Step 0
+      # read the pipeline on 2026-08-12 and found roughly seventeen — the list "was about to
+      # fire eight shots at a target that has changed shape" — and reconciled it by hand.
+      # Thirteen days later it was wrong again. Reconciling does not hold; the manifest is
+      # what makes a step part of the inventory, exactly as seeds.tsv is what makes a file a
+      # seed.
+      - name: The gate inventory matches the workflows
+        if: ${{ inputs.variant == 'github' }}
+        run: scripts/gates.sh
+
       - name: Seeded files match the pinned scaffold
         env:
           VARIANT: ${{ inputs.variant }}
