@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/rak200/.github/compare/1.15.0...1.16.0) (2026-08-27)
+
+
+### Features
+
+* the gate inventory is derived from the workflows, not maintained beside them ([#52](https://github.com/rak200/.github/issues/52)) ([3f0db67](https://github.com/rak200/.github/commit/3f0db67a5ab22bc5c499187229d249cea764a8d4))
+
 ## [1.15.0](https://github.com/rak200/.github/compare/1.14.0...1.15.0) (2026-08-25)
 
 
