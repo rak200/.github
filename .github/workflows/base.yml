@@ -387,18 +387,38 @@ jobs:
               fail=1
             fi
           }
+          # Language-specific claims come from the manifest that exists; the License
+          # claim is common to both, and it is what keeps this step from grading
+          # nothing at all in a repository with no composer.json. Measured 2026-08-27
+          # on rak200/ui: `verified 0 mirror badges`, green, with the node badge
+          # deliberately wrong — the step made no claim it could fail on.
+          manifest=
           if [ -f composer.json ]; then
+            manifest=composer.json
             # The manifest's `^8.4` renders as `8.4+` on the badge. This is the only
             # normalisation: everywhere else the badge carries the source verbatim.
             claim "PHP version" 'php-' \
                   "$(jq -r '.require.php // empty' composer.json | sed 's/^\^//; s/$/+/')"
             claim "License" 'license-' "$(jq -r '.license // empty' composer.json)"
+          elif [ -f package.json ]; then
+            manifest=package.json
+            # The Node claim is NOT made here: `engines.node` is `>=22.13.0` against a
+            # badge reading `22`, and the comparison that knows to take the major lives
+            # in js.yml. Same split as the PHPStan level below.
+            claim "License" 'license-' "$(jq -r '.license // empty' package.json)"
           fi
           # The PHPStan-level claim is NOT made here. Once the level moved into the
           # pinned Layer 2 config, the repository alone no longer states it, and this
           # job has no vendor/ — the claim would silently resolve to nothing. It is
           # made in php.yml, after install, where the effective level is readable.
           echo "verified $verified mirror badges"
+          # A step that verified nothing is not a step that found nothing. Guarded on a
+          # manifest being PRESENT, so a prose repository with no manifest to mirror
+          # stays quiet rather than red for a condition that is correct.
+          if [ -n "$manifest" ] && [ "$verified" -eq 0 ]; then
+            echo "::error::$manifest is present and not one badge claim was verified — this step graded nothing"
+            fail=1
+          fi
           exit $fail
 
       # `grep -P`, not `-E`: the symbol pattern is PCRE — `(?:` is not ERE syntax, and

@@ -231,14 +231,24 @@ jobs:
             echo "::error::CodeQL produced no SARIF — the analysis did not run, and a scanner that did not run is not a scanner that found nothing"
             exit 1
           fi
+          # ANY result fails, not only `level == "error"`. Measured 2026-08-27 on
+          # rak200/ui: a canary planting `location.hash` into `innerHTML` produced
+          # `1 results, 0 at error level` against `0 results` on master over three runs,
+          # and this step passed it. CodeQL had found the sink, written it to the SARIF,
+          # and the gate read the level and let it through — a scanner that reports a
+          # vulnerability into a gate that ignores it is the estate's `looks green,
+          # enforces nothing` with the finding already in hand.
+          #
+          # The old filter also made anything below `error` invisible: the annotation
+          # loop selected the same level, so a warning showed up as a number in a line
+          # of log and nowhere else. The level is now printed with each finding.
           fail=0
           for report in "${reports[@]}"; do
-            errors=$(jq '[.runs[].results[]? | select(.level == "error")] | length' "$report")
             total=$(jq '[.runs[].results[]?] | length' "$report")
-            echo "$report: $total results, $errors at error level"
-            if [ "$errors" -gt 0 ]; then
-              jq -r '.runs[].results[]? | select(.level == "error")
-                     | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri),line=\(.locations[0].physicalLocation.region.startLine)::\(.ruleId): \(.message.text)"' "$report"
+            echo "$report: $total results"
+            if [ "$total" -gt 0 ]; then
+              jq -r '.runs[].results[]?
+                     | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri),line=\(.locations[0].physicalLocation.region.startLine)::\(.ruleId) [\(.level // "none")]: \(.message.text)"' "$report"
               fail=1
             fi
           done
