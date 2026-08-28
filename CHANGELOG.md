@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/rak200/.github/compare/1.16.0...1.16.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* two gates were green because they could not fail ([#58](https://github.com/rak200/.github/issues/58)) ([e63d96d](https://github.com/rak200/.github/commit/e63d96d3dc8b757101508709d9d2fcc8c3fe4aa4))
+
 ## [1.16.0](https://github.com/rak200/.github/compare/1.15.0...1.16.0) (2026-08-27)
 
 
