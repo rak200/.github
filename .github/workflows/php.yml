@@ -5,6 +5,20 @@ name: php
 
 on:
   workflow_call:
+    # EVERY input here is chosen per VARIANT, never per repository. The caller that passes
+    # them is `scaffold/<variant>/ci.yml` in rak200/workflow, seeded and graded byte-for-byte
+    # outside its version pin — so a repository cannot pass one without failing `Seeded files
+    # match the pinned scaffold`. A repository that needs a different value needs a variant,
+    # which is what `ts-config` is: it passes `browser: false` where `ts` leaves it on.
+    #
+    # An input therefore earns its place only when some variant passes it. Three did not —
+    # `runs-on`, `extensions` and `mutation` — and were removed on 2026-08-30 (RFC 0017
+    # `E.38`); their values are now literals below. `mutation` was the one worth arguing
+    # about: it existed for "a repo that has not reached the floor yet", while the task
+    # vocabulary gate requires the `mutation` verb of every repository unconditionally, so
+    # the input contradicted a gate that has a canary behind it. The case it was for is
+    # already served better — `infection.json5.dist` is per-repo and never a seed, so a
+    # repository enters at the floor it has and ratchets, exactly as `.coverage-floor` does.
     inputs:
       variant:
         description: >
@@ -18,18 +32,6 @@ on:
         description: 'JSON array of PHP versions. The first is the floor: single-run steps ride it.'
         type: string
         default: '["8.4", "8.5"]'
-      runs-on:
-        description: 'JSON array of runners. ubuntu-latest alone unless a repo has an OS-shaped reason.'
-        type: string
-        default: '["ubuntu-latest"]'
-      extensions:
-        description: 'PHP extensions for setup-php.'
-        type: string
-        default: 'mbstring'
-      mutation:
-        description: 'Run the mutation floor. Off for a repo that has not reached it yet.'
-        type: boolean
-        default: true
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -56,14 +58,14 @@ jobs:
       fail-fast: false
       matrix:
         php: ${{ fromJSON(inputs.php-versions) }}
-        os: ${{ fromJSON(inputs.runs-on) }}
+        os: [ubuntu-latest]
     permissions:
       contents: read
       security-events: write   # SARIF upload — not enforced on public repos
       actions: read            # codeql-action reads the run — private repos only
       id-token: write          # Codecov OIDC
     env:
-      IS_FLOOR: ${{ matrix.php == fromJSON(inputs.php-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
+      IS_FLOOR: ${{ matrix.php == fromJSON(inputs.php-versions)[0] && matrix.os == 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,7 +75,7 @@ jobs:
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: ${{ inputs.extensions }}
+          extensions: mbstring, bcmath
           coverage: pcov
           tools: composer:v2
 
@@ -204,7 +206,7 @@ jobs:
       # runs. `--ignore-msi-with-no-mutations` lets a docs-only PR pass instead of
       # failing on zero mutants; the diff base needs the `fetch-depth: 0` above.
       - name: composer mutation — floor (changed lines)
-        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
         run: |
           composer mutation -- --git-diff-lines \
             --git-diff-base="origin/${{ github.base_ref }}" \
@@ -214,7 +216,7 @@ jobs:
       # one file can stop a test from killing a mutant in a file the diff never touched.
       # Manual, before a significant release — the caller carries `workflow_dispatch`.
       - name: composer mutation — floor (full)
-        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
         run: composer mutation
 
   gate:

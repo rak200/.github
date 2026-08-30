@@ -6,6 +6,20 @@ name: js
 
 on:
   workflow_call:
+    # EVERY input here is chosen per VARIANT, never per repository. The caller that passes
+    # them is `scaffold/<variant>/ci.yml` in rak200/workflow, seeded and graded byte-for-byte
+    # outside its version pin — so a repository cannot pass one without failing `Seeded files
+    # match the pinned scaffold`. A repository that needs a different value needs a variant,
+    # which is what `ts-config` is: it passes `browser: false` where `ts` leaves it on.
+    #
+    # An input therefore earns its place only when some variant passes it. Three did not —
+    # `runs-on`, `extensions` and `mutation` — and were removed on 2026-08-30 (RFC 0017
+    # `E.38`); their values are now literals below. `mutation` was the one worth arguing
+    # about: it existed for "a repo that has not reached the floor yet", while the task
+    # vocabulary gate requires the `mutation` verb of every repository unconditionally, so
+    # the input contradicted a gate that has a canary behind it. The case it was for is
+    # already served better — `infection.json5.dist` is per-repo and never a seed, so a
+    # repository enters at the floor it has and ratchets, exactly as `.coverage-floor` does.
     inputs:
       variant:
         description: >
@@ -19,16 +33,12 @@ on:
         description: 'JSON array of Node majors. The first is the floor: single-run steps ride it.'
         type: string
         default: '["22", "24"]'
-      runs-on:
-        description: 'JSON array of runners. ubuntu-latest alone unless a repo has an OS-shaped reason.'
-        type: string
-        default: '["ubuntu-latest"]'
       browser:
-        description: 'Install a Playwright browser for component tests. Off for a package with no DOM.'
-        type: boolean
-        default: true
-      mutation:
-        description: 'Run the mutation floor. Off for a repo that has not reached it yet.'
+        description: >
+          Install a Playwright browser for component tests. Chosen per VARIANT, not per
+          repository: the caller is a seed graded byte-for-byte outside its version pin, so
+          a repository cannot pass this — `ts-config` sets it false and `ts` leaves it on.
+          A repository that needs a different value needs a variant. See LIFECYCLE 8.3.
         type: boolean
         default: true
     secrets:
@@ -57,14 +67,14 @@ jobs:
       fail-fast: false
       matrix:
         node: ${{ fromJSON(inputs.node-versions) }}
-        os: ${{ fromJSON(inputs.runs-on) }}
+        os: [ubuntu-latest]
     permissions:
       contents: read
       security-events: write   # SARIF upload — not enforced on public repos
       actions: read            # codeql-action reads the run — private repos only
       id-token: write          # Codecov OIDC
     env:
-      IS_FLOOR: ${{ matrix.node == fromJSON(inputs.node-versions)[0] && matrix.os == fromJSON(inputs.runs-on)[0] }}
+      IS_FLOOR: ${{ matrix.node == fromJSON(inputs.node-versions)[0] && matrix.os == 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -266,7 +276,7 @@ jobs:
       # LINES: Stryker's granularity is the file, so a one-line edit mutates its whole
       # file. Stricter, and cheap at this size.
       - name: npm run mutation — floor (changed files)
-        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
+        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
         run: |
           set -uo pipefail
           # `-- src`, NOT `-- 'src/**/*.ts'`. A git pathspec is not a shell glob: by
@@ -294,7 +304,7 @@ jobs:
           npm run mutation -- --mutate "$changed"
 
       - name: npm run mutation — floor (full)
-        if: ${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
         run: npm run mutation
 
   gate:
