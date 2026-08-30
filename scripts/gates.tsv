@@ -48,8 +48,8 @@ php	matrix	composer coverage — floor	gate	env.IS_FLOOR == 'true'
 php	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'
 php	matrix	composer scan	report	env.IS_FLOOR == 'true'
 php	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
-php	matrix	composer mutation — floor (changed lines)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
-php	matrix	composer mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+php	matrix	composer mutation — floor (changed lines)	gate	${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
+php	matrix	composer mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
 php	gate	Every job succeeded	aggregate	
 js	matrix	npm ci	gate	
 js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
@@ -66,6 +66,6 @@ js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
 js	matrix	CodeQL init	setup	env.IS_FLOOR == 'true'
 js	matrix	CodeQL analyse and publish	report	env.IS_FLOOR == 'true'
 js	matrix	CodeQL findings block the merge	gate	env.IS_FLOOR == 'true'
-js	matrix	npm run mutation — floor (changed files)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'pull_request' }}
-js	matrix	npm run mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && inputs.mutation && github.event_name == 'workflow_dispatch' }}
+js	matrix	npm run mutation — floor (changed files)	gate	${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
+js	matrix	npm run mutation — floor (full)	gate	${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
 js	gate	Every job succeeded	aggregate	
