@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/rak200/.github/compare/1.16.1...2.0.0) (2026-08-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* the caller inputs are the ones a variant actually passes ([#60](https://github.com/rak200/.github/issues/60))
+
+### Features
+
+* the caller inputs are the ones a variant actually passes ([#60](https://github.com/rak200/.github/issues/60)) ([0b3c805](https://github.com/rak200/.github/commit/0b3c805cc21705d0f9755195954241868f8cb3cc))
+
 ## [1.16.1](https://github.com/rak200/.github/compare/1.16.0...1.16.1) (2026-08-28)
 
 
