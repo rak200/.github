@@ -31,6 +31,7 @@ base	conformance	Seeded files match the pinned scaffold	gate
 base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}
 base	conformance	The pinned pipeline is not obsolete	gate	
 base	conformance	README mirror badges match their sources	gate	
+base	conformance	A repository with src/ has docs/	gate	
 base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''
 base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'
 base	conformance	Delivered roadmap entries are pruned	gate	github.event_name == 'pull_request'

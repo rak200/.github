@@ -421,6 +421,30 @@ jobs:
           fi
           exit $fail
 
+      # `CONVENTIONS.md` §Documentation mandates two different things, and one step
+      # asserting both asserted neither. This half is the mandate itself: a repository
+      # with source has a `docs/`. It is separate because the branch that used to open
+      # the combined step returned green when `docs/` was absent — so deleting `docs/`
+      # was how a repository passed, and the one state the rule forbids was the one
+      # state the check treated as out of scope. Two of six were passing that way.
+      - name: A repository with src/ has docs/
+        run: |
+          set -uo pipefail
+          [ -d src ] || { echo "no src/ — nothing to document"; exit 0; }
+          [ -d docs ] || {
+            echo "::error::src/ exists and docs/ does not — documentation is mandatory"
+            exit 1
+          }
+          echo "docs/ is present"
+
+      # The other half, and it holds only where a repository's API *is* its exported
+      # symbols. A `-config` package's is not: its interface is the verbs it installs
+      # and the entry points its manifest declares, and `src/` exists so the binaries
+      # and the tests can reach logic that would otherwise sit in a child process,
+      # invisible to coverage. Measured on `coding-standard-ts`: `package.json`'s
+      # `exports` names five config entry points and no path under `src/`, so nothing
+      # there is reachable by a consumer at all. Those variants pass an empty pattern.
+      #
       # `grep -P`, not `-E`: the symbol pattern is PCRE — `(?:` is not ERE syntax, and
       # ERE parses it as something that matches almost nothing. Measured on a real
       # library: 1 symbol found under -E against 358 under -P. The step was green in
@@ -432,9 +456,7 @@ jobs:
           PATTERN: ${{ inputs.symbol-pattern }}
         run: |
           set -uo pipefail
-          if [ ! -d src ] || [ ! -d docs ]; then
-            echo "no src/ or no docs/ — check does not apply"; exit 0
-          fi
+          [ -d src ] || { echo "no src/ — check does not apply"; exit 0; }
           fail=0
           found=0
           while read -r symbol; do
