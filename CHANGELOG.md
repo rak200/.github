@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/rak200/.github/compare/2.0.0...2.1.0) (2026-09-04)
+
+
+### Features
+
+* documentation is mandatory is two assertions, and one step asserted neither ([#67](https://github.com/rak200/.github/issues/67)) ([82d5c75](https://github.com/rak200/.github/commit/82d5c75bb4b55a594c4d6573cfa23e9e4e970cbb))
+
 ## [2.0.0](https://github.com/rak200/.github/compare/1.16.1...2.0.0) (2026-08-30)
 
 
