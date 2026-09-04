@@ -28,6 +28,15 @@ on:
           of seeds, so the variant cannot be baked in here.
         type: string
         default: 'php'
+      symbol-pattern:
+        description: >
+          Extended-regex matching a public symbol in src/. Defaults to this language's.
+          A variant passes '' where its API is not its exported symbols: a `-config`
+          package's interface is the verbs it installs and the entry points its manifest
+          declares, and its `src/` exists so the binaries and tests can reach the logic.
+          It disables only the symbol half — `docs/` is still mandatory.
+        type: string
+        default: '^\s*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+|^\s*public\s+(?:static\s+)?function\s+\w+'
       php-versions:
         description: 'JSON array of PHP versions. The first is the floor: single-run steps ride it.'
         type: string
@@ -44,8 +53,7 @@ jobs:
     uses: ./.github/workflows/base.yml
     with:
       variant: ${{ inputs.variant }}
-      # A class, interface, enum, trait or public method name in src/.
-      symbol-pattern: '^\s*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+|^\s*public\s+(?:static\s+)?function\s+\w+'
+      symbol-pattern: ${{ inputs.symbol-pattern }}
       publish-gate: false
 
   matrix:
