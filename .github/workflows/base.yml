@@ -18,8 +18,9 @@ on:
         default: none
       symbol-pattern:
         description: >
-          Extended-regex whose first capture group is a public symbol name in src/.
-          Empty disables the documentation-coverage check.
+          PCRE matching a public declaration in src/; the symbol is the last identifier
+          of the match, and the pattern needs no capture group. Empty disables the symbol
+          half of the documentation check — `docs/` itself is asserted unconditionally.
         type: string
         default: ''
       publish-gate:

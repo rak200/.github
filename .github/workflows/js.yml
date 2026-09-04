@@ -31,7 +31,7 @@ on:
         default: 'ts'
       symbol-pattern:
         description: >
-          Extended-regex matching a public symbol in src/. Defaults to this language's.
+          PCRE matching a public declaration in src/. Defaults to this language's.
           A variant passes '' where its API is not its exported symbols: a `-config`
           package's interface is the verbs it installs and the entry points its manifest
           declares, and its `src/` exists so the binaries and tests can reach the logic.
