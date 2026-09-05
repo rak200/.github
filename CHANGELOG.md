@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/rak200/.github/compare/2.2.0...2.3.0) (2026-09-05)
+
+
+### Features
+
+* the shipped compiler major is a mirror badge too ([#73](https://github.com/rak200/.github/issues/73)) ([1cb0918](https://github.com/rak200/.github/commit/1cb0918ecc30b515a30ad414885bad8d9258075a))
+
 ## [2.2.0](https://github.com/rak200/.github/compare/2.1.0...2.2.0) (2026-09-05)
 
 
