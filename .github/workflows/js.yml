@@ -175,6 +175,16 @@ jobs:
                  eslint.config.js eslint.base.js "$pkg/eslint.base.js")
           claim "ESLint tier" 'ESLint-' "$tier"
 
+          # Only a package that SHIPS the compiler makes this claim, so the source is
+          # `dependencies` and not `devDependencies`: a repository that merely compiles
+          # with TypeScript yields nothing here and `claim` returns before asking for a
+          # badge. One repository ships it today, and the warning that it must — in
+          # `scaffold/ts-config/dependabot.yml` — has said CI enforces this since 0.18.13
+          # while nothing did. rak200/workflow#62
+          claim "TypeScript version" 'typescript-' \
+                "$(jq -r '.dependencies.typescript // empty' package.json \
+                   | grep -oP '^\D*\K\d+\.\d+' || true)"
+
           exit $fail
 
       - name: npm run validate
