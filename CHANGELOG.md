@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/rak200/.github/compare/2.1.0...2.2.0) (2026-09-05)
+
+
+### Features
+
+* the mutation floor and the ESLint tier are mirror badges, and now they are checked ([#71](https://github.com/rak200/.github/issues/71)) ([3357965](https://github.com/rak200/.github/commit/3357965ff802412a4ee3c3006c49bb7a30b4a0b2))
+
 ## [2.1.0](https://github.com/rak200/.github/compare/2.0.0...2.1.0) (2026-09-04)
 
 
