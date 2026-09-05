@@ -132,6 +132,49 @@ jobs:
               || { echo "::error file=README.md::Node badge says '$shown', engines.node says '$floor'"; fail=1; }
           fi
           echo "node badge '$shown' vs engines floor '$floor'"
+
+          # The other two claims read a source that lives in the pinned Layer 2 package
+          # and is spread into the consumer's config, so the value the run actually uses
+          # is only readable after `npm ci` — the same reason the PHPStan claim sits in
+          # php.yml rather than base.yml. Precedence is repo config, then this
+          # repository's own `*.base.*` (coding-standard-ts consumes what it publishes,
+          # so it has no node_modules copy of itself), then the installed package.
+          from_sources() {   # $1 = pattern, $2.. = files, first hit wins
+            local pat=$1; shift
+            local f
+            for f in "$@"; do
+              [ -f "$f" ] || continue
+              local hit
+              hit=$(grep -oP "$pat" "$f" 2>/dev/null | head -1 || true)
+              [ -n "$hit" ] || continue
+              printf '%s' "$hit"; return 0
+            done
+          }
+          claim() {   # $1 label, $2 badge key incl. trailing '-', $3 source value
+            [ -n "$3" ] || return 0
+            local shown decoded
+            shown=$(grep -oP "img\.shields\.io/badge/\Q$2\E\K[^-)?]*(?=-)" README.md | head -1 || true)
+            if [ -z "$shown" ]; then
+              echo "::error file=README.md::$1 badge is absent, but its source says '$3'"
+              fail=1; return 0
+            fi
+            decoded=${shown//%20/ }; decoded=${decoded//%2B/+}; decoded=${decoded//%25/%}
+            if [ "$decoded" != "$3" ]; then
+              echo "::error file=README.md::$1 badge says '$decoded', source says '$3'"
+              fail=1; return 0
+            fi
+            echo "$1 badge '$decoded' matches its source"
+          }
+
+          pkg=node_modules/@rak200/coding-standard-ts
+          msi=$(from_sources 'thresholds:\s*\{[^}]*break:\s*\K[0-9]+' \
+                  stryker.config.js stryker.base.js "$pkg/stryker.base.js")
+          claim "Stryker floor" 'Stryker-' "${msi:+MSI $msi%}"
+
+          tier=$(from_sources 'tseslint\.configs\.\K(?:strict|recommended)TypeChecked' \
+                 eslint.config.js eslint.base.js "$pkg/eslint.base.js")
+          claim "ESLint tier" 'ESLint-' "$tier"
+
           exit $fail
 
       - name: npm run validate
