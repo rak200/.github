@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/rak200/.github/compare/2.3.0...2.4.0) (2026-09-06)
+
+
+### Features
+
+* a repository may not weaken a mandated value ([#75](https://github.com/rak200/.github/issues/75)) ([edbf363](https://github.com/rak200/.github/commit/edbf363baf86f5bef0b6a1f7586b12dfaffc05e0))
+
 ## [2.3.0](https://github.com/rak200/.github/compare/2.2.0...2.3.0) (2026-09-05)
 
 
