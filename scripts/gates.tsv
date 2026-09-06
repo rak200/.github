@@ -42,6 +42,7 @@ php	matrix	Composer cache directory	setup
 php	matrix	composer install	gate	
 php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
 php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'
+php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'
 php	matrix	composer lint	gate	env.IS_FLOOR == 'true'
 php	matrix	composer analyse	gate	
 php	matrix	composer test	gate	
@@ -55,6 +56,7 @@ php	gate	Every job succeeded	aggregate
 js	matrix	npm ci	gate	
 js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
 js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'
+js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'
 js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'
 js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'
 js	matrix	npm run analyse	gate	

@@ -152,6 +152,53 @@ jobs:
           echo "badge says '$decoded', effective level is '$level'"
           [ "$decoded" = "$level" ]
 
+      # Every badge check in this pipeline asserts `badge == config`. None asserted
+      # `config == convention`, so a pull request lowering `level: max` to `level: 8` and
+      # moving the badge with it was green in every gate the estate has. The convention's
+      # machine-readable form is the pinned Layer 2 package and it arrives in `vendor/`,
+      # so this comparison needs no new home for the value — only the two files the
+      # PHPStan claim above already opens. rak200/workflow#69
+      #
+      # Compared only where the repository restates a value. A consumer that merely
+      # `includes:` the standard has nothing to disagree with, and the standard itself
+      # has nothing above it: Composer installs no copy of a package into its own
+      # `vendor/`, which is what the guard below detects.
+      - name: A repository may not weaken a mandated value
+        if: env.IS_FLOOR == 'true'
+        run: |
+          set -uo pipefail
+          std=vendor/rak200/coding-standard-php
+          [ -d "$std" ] || { echo "no pinned standard under vendor/ — this repository is it"; exit 0; }
+          fail=0
+          compared=0
+          agree() {   # $1 label, $2 PCRE, $3 file here, $4 the same file in the standard
+            local mine theirs
+            theirs=$(grep -oP "$2" "$4" 2>/dev/null | head -1 || true)
+            if [ -z "$theirs" ]; then
+              echo "::error::$1 is not set in the pinned standard — the value it mandates cannot be read"
+              fail=1; return 0
+            fi
+            compared=$((compared + 1))
+            mine=$(grep -oP "$2" "$3" 2>/dev/null | head -1 || true)
+            if [ -z "$mine" ]; then
+              echo "$1: not restated here, so the standard's '$theirs' is what runs"
+              return 0
+            fi
+            if [ "$mine" != "$theirs" ]; then
+              echo "::error file=$3::$1 is '$mine' here and '$theirs' in the pinned standard"
+              fail=1; return 0
+            fi
+            echo "$1: '$mine', and the standard agrees"
+          }
+          agree "PHPStan level" '(?<=level:\s)\S+' \
+                phpstan.neon.dist "$std/phpstan.neon.dist"
+          agree "Infection minCoveredMsi" '"minCoveredMsi"\s*:\s*\K[0-9]+' \
+                infection.json5.dist "$std/infection.json5.dist"
+          # The standard is present, so something was owed. A step that compared nothing
+          # is not a step that found nothing.
+          [ "$compared" -gt 0 ] || { echo "::error::the standard is installed and not one value was compared"; exit 1; }
+          exit $fail
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
