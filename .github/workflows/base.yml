@@ -171,6 +171,46 @@ jobs:
           [ "$checked" -gt 0 ] || { echo "::error::no seeds checked — the manifest matched nothing"; exit 1; }
           exit $fail
 
+      # `.git-blame-ignore-revs` is graded `prefix:4`, so the step above reaches its four
+      # header lines and stops. The entries below them — the only part of the file that
+      # does anything — are the repository's own history, and were checked by nothing.
+      #
+      # Both ways of getting one wrong are worth naming, because they behave in opposite
+      # directions and only one of them is loud. Measured on rak200/utils:
+      #
+      #   a full SHA that is not a commit   git blame ignores it, exit 0, stderr empty
+      #   an abbreviated SHA                fatal: invalid object name — the whole run dies
+      #
+      # So a dead entry reads exactly like a live one, while a short entry takes the file
+      # down with it. `rev-parse --verify` alone would catch neither cleanly: it RESOLVES an
+      # abbreviation that `--ignore-revs-file` then refuses. Hence two assertions, not one.
+      # An entry naming a commit that does not exist had been doing nothing in that
+      # repository since 2026-07-10, under a green gate throughout.
+      #
+      # Existence is all this proves. Whether the commit is a bulk reformat, and whether a
+      # reformat that happened was recorded at all, stay unchecked — nothing here can decide
+      # either. rak200/.github#77
+      - name: Blame-ignore entries resolve to commits
+        run: |
+          set -uo pipefail
+          [ -f .git-blame-ignore-revs ] || { echo "no .git-blame-ignore-revs"; exit 0; }
+          fail=0
+          checked=0
+          # `|| [ -n "$sha" ]` so a final line without a newline is still read
+          while read -r sha _ || [ -n "$sha" ]; do
+            case "$sha" in ''|'#'*) continue ;; esac
+            checked=$((checked + 1))
+            if ! printf '%s' "$sha" | grep -qE '^[0-9a-f]{40}$'; then
+              echo "::error file=.git-blame-ignore-revs::$sha is not a full 40-character object name — git blame refuses an abbreviated entry outright"
+              fail=1
+              continue
+            fi
+            git rev-parse --verify --quiet "$sha^{commit}" >/dev/null \
+              || { echo "::error file=.git-blame-ignore-revs::$sha is not a commit in this repository — git blame would skip it in silence"; fail=1; }
+          done < .git-blame-ignore-revs
+          echo "checked $checked blame-ignore entries"
+          exit $fail
+
       # The check above grades a repository against ITS OWN pinned scaffold, so a stale
       # pin compares an old file to an old seed and passes. The check that exists to
       # detect drift is the one that hides it, by construction.
