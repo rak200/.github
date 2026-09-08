@@ -28,6 +28,7 @@ base	conformance	Locate the scaffold	gate
 base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}
 base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}
 base	conformance	Seeded files match the pinned scaffold	gate	
+base	conformance	Blame-ignore entries resolve to commits	gate	
 base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}
 base	conformance	The pinned pipeline is not obsolete	gate	
 base	conformance	README mirror badges match their sources	gate	
