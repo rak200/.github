@@ -2,3 +2,9 @@
 # Enable locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
 # Appended by a follow-up PR once the reformat merges; one full SHA, with a comment.
 # Everything above this line is a seed; everything below is this repository's history.
+
+# canary: a full SHA that is not a commit here
+0000000000000000000000000000000000000000
+
+# canary: an abbreviated SHA
+ecebfc2
