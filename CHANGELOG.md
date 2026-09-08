@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/rak200/.github/compare/2.4.0...2.5.0) (2026-09-08)
+
+
+### Features
+
+* a blame-ignore entry that names no commit is now caught ([#80](https://github.com/rak200/.github/issues/80)) ([74b5ae6](https://github.com/rak200/.github/commit/74b5ae6a0364f0d4961c70eb88bdd8260eac4a5c))
+
 ## [2.4.0](https://github.com/rak200/.github/compare/2.3.0...2.4.0) (2026-09-06)
 
 
