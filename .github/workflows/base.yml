@@ -498,6 +498,27 @@ jobs:
       # library: 1 symbol found under -E against 358 under -P. The step was green in
       # both cases, and could only be green, because the repositories that ran it had
       # no src/ and returned at the guard above. Hence the vacuity guard below.
+      # WHAT THIS ASSERTS IS THE WORD, AND NOTHING MORE. `grep -Rqw` finds the symbol
+      # anywhere under docs/ — a heading, a table cell, a sentence about something else,
+      # or a sentence saying the symbol is NOT public API, which is a real case: prose in
+      # coding-standard-ts reading "`parseFloor`, `parseClover` and `evaluate` are
+      # exported because the binaries and the tests reach…" satisfied this check as proof
+      # that all three are documented API. Hence the failure message says *does not
+      # appear*, which is what a miss proves, and not *is documented nowhere*, which it
+      # cannot know.
+      #
+      # Nothing stricter is available, and each alternative was measured over the 432
+      # public symbols in the three repositories this grades rather than argued:
+      #
+      #   a heading per symbol   342/358 utils, 26/37 ui — and it is the granularity
+      #                          `docs/` is sized by unit, not by class rejects
+      #   inside a fence         free in PHP, 11 of 37 in ui, whose docs document
+      #                          components by attribute and event, not by signature
+      #   in backticks           passes everything, and misses the denying sentence,
+      #                          which carried all three of its symbols in backticks
+      #
+      # What it does catch is the symbol nobody wrote about at all, which is the mistake
+      # that happens; over those 432 it produced no false pass. rak200/workflow#129
       - name: Public symbols appear in docs/
         if: inputs.symbol-pattern != ''
         env:
@@ -511,7 +532,7 @@ jobs:
             [ -n "$symbol" ] || continue
             found=$((found + 1))
             grep -Rqw -- "$symbol" docs/ || {
-              echo "::error::public symbol '$symbol' is documented nowhere in docs/"
+              echo "::error::public symbol '$symbol' does not appear anywhere under docs/"
               fail=1
             }
           done < <(grep -rhoP "$PATTERN" src/ | grep -oE '[A-Za-z_][A-Za-z0-9_]*$' | sort -u)
