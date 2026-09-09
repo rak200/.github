@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.2](https://github.com/rak200/.github/compare/2.5.1...2.5.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* a comment about a value could decide the gate that reads it ([#88](https://github.com/rak200/.github/issues/88)) ([9061b97](https://github.com/rak200/.github/commit/9061b975d6642f76c4eb1d0c621f35a940c10f25))
+
 ## [2.5.1](https://github.com/rak200/.github/compare/2.5.0...2.5.1) (2026-09-09)
 
 

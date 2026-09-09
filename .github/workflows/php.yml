@@ -144,9 +144,15 @@ jobs:
           # without saying anything" shape this pipeline exists to eliminate.
           set -uo pipefail
           [ -f README.md ] || { echo "no README.md"; exit 0; }
-          level=$(grep -oP '(?<=level:\s)\S+' phpstan.neon.dist 2>/dev/null | head -1 || true)
-          [ -n "$level" ] || level=$(grep -oP '(?<=level:\s)\S+' \
-            vendor/rak200/coding-standard-php/phpstan.neon.dist 2>/dev/null | head -1 || true)
+          # Comment lines first: a comment explaining the level reads exactly like the
+          # level to this pattern, and the first textual hit wins. Measured — "the
+          # standard mandates `level: max`" above `level: 8` yielded max`;, stray
+          # punctuation included. rak200/.github#87
+          nocomment() { grep -vE '^[[:space:]]*(#|//)' "$1" 2>/dev/null; }
+          level=$(nocomment phpstan.neon.dist | grep -oP '(?<=level:\s)\S+' | head -1 || true)
+          [ -n "$level" ] || level=$(nocomment \
+            vendor/rak200/coding-standard-php/phpstan.neon.dist \
+            | grep -oP '(?<=level:\s)\S+' | head -1 || true)
           [ -n "$level" ] || { echo "::error::no PHPStan level found locally or in the pinned standard"; exit 1; }
           shown=$(grep -oP 'img\.shields\.io/badge/PHPStan-level%20\K[^-)?]*(?=-)' README.md | head -1 || true)
           [ -n "$shown" ] || { echo "::error file=README.md::PHPStan badge is absent, but the effective level is '$level'"; exit 1; }
@@ -173,15 +179,19 @@ jobs:
           [ -d "$std" ] || { echo "no pinned standard under vendor/ — this repository is it"; exit 0; }
           fail=0
           compared=0
+          # A comment ABOUT a value reads exactly like the value to these patterns, and the
+          # first textual hit wins — so comment lines are dropped before matching, '#' for
+          # NEON and '//' for JSON5 and JS. rak200/.github#87
+          nocomment() { grep -vE '^[[:space:]]*(#|//)' "$1" 2>/dev/null; }
           agree() {   # $1 label, $2 PCRE, $3 file here, $4 the same file in the standard
             local mine theirs
-            theirs=$(grep -oP "$2" "$4" 2>/dev/null | head -1 || true)
+            theirs=$(nocomment "$4" | grep -oP "$2" | head -1 || true)
             if [ -z "$theirs" ]; then
               echo "::error::$1 is not set in the pinned standard — the value it mandates cannot be read"
               fail=1; return 0
             fi
             compared=$((compared + 1))
-            mine=$(grep -oP "$2" "$3" 2>/dev/null | head -1 || true)
+            mine=$(nocomment "$3" | grep -oP "$2" | head -1 || true)
             if [ -z "$mine" ]; then
               echo "$1: not restated here, so the standard's '$theirs' is what runs"
               return 0
