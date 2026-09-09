@@ -68,6 +68,8 @@ jobs:
   matrix:
     name: Node ${{ matrix.node }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # The budget for the fast half. The mutation floor was the last step here and now has
+    # a job of its own, which is where the measurement behind its own number lives.
     timeout-minutes: 20
     strategy:
       # Never fail-fast on a version matrix: the useful information is whether a
@@ -393,6 +395,59 @@ jobs:
           done
           exit $fail
 
+  # The mutation floor is a job of its own, and that is a measurement rather than tidiness.
+  # It used to be the last two steps of `matrix`, where it got whatever was left of that
+  # job's 20 minutes once the fast verbs, the browser install and CodeQL had taken theirs —
+  # a budget sized for the steps it is least like. On the pull request that forced this
+  # change the remainder was 17 minutes and the run needed 19: it stood at 299 of 316
+  # mutants with no survivors when the job hit its timeout.
+  #
+  # A job that exceeds `timeout-minutes` is recorded as CANCELLED, not failed. The gate
+  # caught it, because it compares for equality with `success` and non-negotiable 2 exists
+  # for exactly that — but what it reported was a cancellation rather than a floor measured
+  # and missed, and those two read very differently to whoever opened the pull request.
+  #
+  # `needs: matrix` because a mutation run over a red suite measures nothing: the dry run
+  # is the suite, so it fails first — tens of minutes after the suite already said so.
+  #
+  # There is deliberately NO job-level `if:` on the event. Both steps below carry one, so
+  # off those two triggers this job installs and does nothing, which costs about a minute.
+  # Skipping the job instead would make its result `skipped`, and a required check that a
+  # skip satisfies is the first thing non-negotiable 2 forbids — so that minute is what
+  # keeping the gate honest costs.
+  mutation:
+    name: mutation floor
+    needs: matrix
+    runs-on: ubuntu-latest
+    # Chosen against the diff path, which is the one on the required check: 321 mutants
+    # took 19 minutes there, and this is that with room for a library twice the size. It is
+    # NOT a claim about the full run below — what `workflow_dispatch` costs at library
+    # scale has never been measured, because the step could never finish inside the old
+    # budget to produce a number.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          fetch-depth: 0   # Stryker diffs against origin/master
+
+      # The floor version, the way every single-run step in `matrix` rides it: a mutation
+      # score is a property of the code, not of the runtime it was measured on.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ fromJSON(inputs.node-versions)[0] }}
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      # Stryker's dry run IS the suite, so it needs the browser the suite needs.
+      - name: Install the test browser
+        if: inputs.browser
+        run: npx playwright install --with-deps chromium
+
       # Mutation runs over the CHANGED FILES on a pull request and in full off that path.
       # A full run is tens of minutes on a real library, and a required check that slow is
       # one people learn to route around. The vocabulary still has one mutation verb:
@@ -401,11 +456,15 @@ jobs:
       # Stryker has no `--since`: that is Infection's flag, and passing it here is an
       # `unknown option` error. Stryker's own incremental mode caches a report file,
       # which a fresh CI runner does not have — so the changed files are computed here
-      # and handed to `--mutate`. Note the asymmetry with PHP, which mutates changed
-      # LINES: Stryker's granularity is the file, so a one-line edit mutates its whole
-      # file. Stricter, and cheap at this size.
+      # and handed to `--mutate`. Note the asymmetry with PHP, which passes
+      # `--git-diff-lines` and lets Infection narrow: Stryker has no such flag, so what
+      # this hands over is whole FILES and a one-line edit mutates all of one. Stricter,
+      # and the safe default — a diff that could not be read narrows to nothing rather
+      # than to a file. A repository whose `mutation` verb wants to narrow further may:
+      # `--mutate` documents `file:startLine[:startColumn]-endLine[:endColumn]`, and
+      # rak200/ui's binding rewrites the list into ranges before Stryker sees it.
       - name: npm run mutation — floor (changed files)
-        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           set -uo pipefail
           # `-- src`, NOT `-- 'src/**/*.ts'`. A git pathspec is not a shell glob: by
@@ -433,7 +492,7 @@ jobs:
           npm run mutation -- --mutate "$changed"
 
       - name: npm run mutation — floor (full)
-        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: npm run mutation
 
   gate:
@@ -441,12 +500,15 @@ jobs:
     # Load-bearing: without always() the gate is skipped when a needed job fails, and
     # a skipped required check counts as satisfied.
     if: always()
-    needs: [base, matrix]
+    needs: [base, matrix, mutation]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every job succeeded
         run: |
-          echo "base:   ${{ needs.base.result }}"
-          echo "matrix: ${{ needs.matrix.result }}"
-          [ "${{ needs.base.result }}" = "success" ] && [ "${{ needs.matrix.result }}" = "success" ]
+          echo "base:     ${{ needs.base.result }}"
+          echo "matrix:   ${{ needs.matrix.result }}"
+          echo "mutation: ${{ needs.mutation.result }}"
+          [ "${{ needs.base.result }}" = "success" ] \
+            && [ "${{ needs.matrix.result }}" = "success" ] \
+            && [ "${{ needs.mutation.result }}" = "success" ]
