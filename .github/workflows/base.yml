@@ -444,9 +444,12 @@ jobs:
             # `infection.json5.dist` is per-repo — copied rather than extended, so unlike
             # the PHPStan level it is readable here with no vendor/. `minCoveredMsi` is
             # the key every PHP repository sets; `caster` also sets `minMsi`, and the two
-            # agree. JSON5 carries comments, so this is grep and not jq.
+            # agree. JSON5 carries comments, so this is grep and not jq — and the comment lines
+            # go first, because a comment about the floor reads exactly like the floor.
+            # rak200/.github#87
             claim "Infection floor" 'Infection-' \
-                  "$(grep -oP '"minCoveredMsi"\s*:\s*\K[0-9]+' infection.json5.dist 2>/dev/null \
+                  "$(grep -vE '^[[:space:]]*//' infection.json5.dist 2>/dev/null \
+                     | grep -oP '"minCoveredMsi"\s*:\s*\K[0-9]+' \
                      | head -1 | sed 's/^/min covered MSI /; s/$/%/')"
           elif [ -f package.json ]; then
             manifest=package.json
