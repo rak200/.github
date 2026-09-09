@@ -59,6 +59,8 @@ jobs:
   matrix:
     name: PHP ${{ matrix.php }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # The budget for the fast half. The mutation floor was the last step here and now has
+    # a job of its own, which is where the measurement behind its own number lives.
     timeout-minutes: 20
     strategy:
       # Never fail-fast on a version matrix: the useful information is whether a
@@ -253,6 +255,65 @@ jobs:
           echo "scanner exit code: ${{ steps.scan.outputs.code }}"
           [ "${{ steps.scan.outputs.code }}" = "0" ]
 
+  # The mutation floor is a job of its own, and js.yml carries the measurement that moved
+  # it: on a TypeScript pull request the floor got what was left of `matrix`'s 20 minutes
+  # and needed 19, so the job was killed at 299 of 316 mutants with no survivors — and a
+  # job that exceeds `timeout-minutes` is recorded as CANCELLED rather than failed.
+  #
+  # It binds here for a different reason, and the number above this step already said so:
+  # the diff path mutates changed LINES and is cheap, but the FULL run is ~27 minutes on
+  # rak200/utils and shared the same 20-minute job. The `workflow_dispatch` run this
+  # pipeline offers could not finish on the repository it was measured against.
+  #
+  # `needs: matrix` because a mutation run over a red suite measures nothing: Infection's
+  # initial test run fails first, long after the suite already said the same thing.
+  #
+  # There is deliberately NO job-level `if:` on the event. Both steps below carry one, so
+  # off those two triggers this job installs and does nothing, which costs about a minute.
+  # Skipping the job instead would make its result `skipped`, and a required check that a
+  # skip satisfies is the first thing non-negotiable 2 forbids — so that minute is what
+  # keeping the gate honest costs.
+  mutation:
+    name: mutation floor
+    needs: matrix
+    runs-on: ubuntu-latest
+    # The full run is what sizes this, being the expensive half here: ~27 minutes measured
+    # on rak200/utils, and this is that with room for a library twice the size. The diff
+    # path finishes in a fraction of it.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          fetch-depth: 0   # Infection diffs against origin/master
+
+      # The floor version, the way every single-run step in `matrix` rides it: a mutation
+      # score is a property of the code, not of the runtime it was measured on.
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ fromJSON(inputs.php-versions)[0] }}
+          extensions: mbstring, bcmath
+          coverage: pcov
+          tools: composer:v2
+
+      # Libraries commit no composer.lock, so the key is the manifest plus the runtime.
+      # Composer's cache holds package archives, not a resolution: a restored cache
+      # skips downloads while resolution still happens from scratch.
+      - name: Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-ubuntu-latest-php${{ fromJSON(inputs.php-versions)[0] }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-ubuntu-latest-php${{ fromJSON(inputs.php-versions)[0] }}-
+
+      - name: composer install
+        run: composer install --prefer-dist --no-progress
+
       # Mutation runs over the CHANGED LINES on a pull request and in full off that
       # path. A full run is tens of minutes on a real library (~27 on rak200/utils),
       # and a required check that slow is one people learn to route around — which is
@@ -261,7 +322,7 @@ jobs:
       # runs. `--ignore-msi-with-no-mutations` lets a docs-only PR pass instead of
       # failing on zero mutants; the diff base needs the `fetch-depth: 0` above.
       - name: composer mutation — floor (changed lines)
-        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           composer mutation -- --git-diff-lines \
             --git-diff-base="origin/${{ github.base_ref }}" \
@@ -271,7 +332,7 @@ jobs:
       # one file can stop a test from killing a mutant in a file the diff never touched.
       # Manual, before a significant release — the caller carries `workflow_dispatch`.
       - name: composer mutation — floor (full)
-        if: ${{ env.IS_FLOOR == 'true' && github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: composer mutation
 
   gate:
@@ -279,12 +340,15 @@ jobs:
     # Load-bearing: without always() the gate is skipped when a needed job fails, and
     # a skipped required check counts as satisfied.
     if: always()
-    needs: [base, matrix]
+    needs: [base, matrix, mutation]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every job succeeded
         run: |
-          echo "base:   ${{ needs.base.result }}"
-          echo "matrix: ${{ needs.matrix.result }}"
-          [ "${{ needs.base.result }}" = "success" ] && [ "${{ needs.matrix.result }}" = "success" ]
+          echo "base:     ${{ needs.base.result }}"
+          echo "matrix:   ${{ needs.matrix.result }}"
+          echo "mutation: ${{ needs.mutation.result }}"
+          [ "${{ needs.base.result }}" = "success" ] \
+            && [ "${{ needs.matrix.result }}" = "success" ] \
+            && [ "${{ needs.mutation.result }}" = "success" ]

@@ -25,8 +25,15 @@ check keeps a stable name.
 - **`base.yml`** — language-agnostic: the seeded-file conformance check, README mirror badges,
   documentation coverage, roadmap pruning, `gitleaks`, and the aggregator. A repository with no
   language calls it directly.
-- **`php.yml`** — calls `base.yml`, adds the PHP matrix (`validate → install → lint → analyse →
-  test → coverage floor → scanners → mutation floor`), and aggregates both in its own gate.
+- **`php.yml`** and **`js.yml`** — call `base.yml`, add that language's matrix (`validate →
+  install → lint → analyse → test → coverage floor → scanners`), then the **mutation floor as a job
+  of its own**, and aggregate all three in their own gate.
+
+  The floor is a separate job because it is the one step whose cost is unlike the rest. Sharing the
+  matrix job's budget it got the remainder, and on a pull request that rewrote two source files
+  that remainder ran out mid-run — with no survivors found and seventeen of nineteen minutes spent.
+  A job that exceeds `timeout-minutes` is recorded as *cancelled*, which the gate below blocks
+  correctly and reports as a cancellation rather than as a floor that was measured and missed.
 
 ```yaml
 jobs:
