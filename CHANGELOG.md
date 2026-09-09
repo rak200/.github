@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.3](https://github.com/rak200/.github/compare/2.5.2...2.5.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* the mutation floor ran on a budget sized for the fast verbs ([#90](https://github.com/rak200/.github/issues/90)) ([b06877b](https://github.com/rak200/.github/commit/b06877b9d0e8028433a08f7a13d9fb68220ff15f))
+
 ## [2.5.2](https://github.com/rak200/.github/compare/2.5.1...2.5.2) (2026-09-09)
 
 
