@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/rak200/.github/compare/2.5.0...2.5.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* the symbol check claimed to know a symbol is undocumented ([#83](https://github.com/rak200/.github/issues/83)) ([d5a89b5](https://github.com/rak200/.github/commit/d5a89b574375226b0004ac8e1597490b53819ce6))
+
 ## [2.5.0](https://github.com/rak200/.github/compare/2.4.0...2.5.0) (2026-09-08)
 
 
