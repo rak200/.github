@@ -6,10 +6,14 @@ step with the commands to run, in **`LIFECYCLE.md`** — carried into each repos
 
 **→ [rak200/workflow `LIFECYCLE.md`](https://github.com/rak200/workflow/blob/master/LIFECYCLE.md)**
 
-That document is the entry point for a person *and* for an agent: it covers the cycle (issue →
-branch → work → PR → CI → review → merge → release → propagation), onboarding a repository, its
-retirement, and the contingencies for a red gate, an absent check, a leaked credential, a stale
-pin and a bad release.
+That document is the entry point for a person *and* for an agent, and it covers the cycle: issue →
+branch → work → PR → CI → review → merge → release → propagation. Two companions travel in the same
+submodule and are named where you need them —
+[**`CONTINGENCIES.md`**](https://github.com/rak200/workflow/blob/master/CONTINGENCIES.md) for when a
+step goes wrong (a red gate, a check that never appears, a leaked credential, a stale pin, a bad
+release), and
+[**`REPOSITORY.md`**](https://github.com/rak200/workflow/blob/master/REPOSITORY.md) for onboarding a
+repository and retiring one.
 
 **One caveat worth stating rather than discovering.** This file propagates account-wide and
 therefore always shows the **current** version. The copy in a repository's `.rak200/` is the
