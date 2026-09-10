@@ -61,7 +61,7 @@ covers the **shape**, not the languages: a change to `php.yml` or `js.yml` is on
 by a pull request in a repository of that language, pointing at the branch.
 
 **A gate that has never failed has never been tested.** After changing one, make it fail on purpose
-once and confirm it blocks; `.rak200/LIFECYCLE.md` §4.3 carries the canary for each gate.
+once and confirm it blocks; `.rak200/CONTINGENCIES.md` §3 carries the canary for each gate.
 
 ## Versioning
 
