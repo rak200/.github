@@ -41,6 +41,19 @@ if [ "$actual" != "$declared" ]; then
   exit 1
 fi
 
+# Every `gate` row carries a canary field: a reference, or `owed`. Empty is refused, so a
+# gate cannot be added without deciding which it is — one level further than the inventory
+# itself, which only proves the gate exists. rak200/.github#86
+blank=$(grep -v '^#' "$manifest" | awk -F'\t' '$4=="gate" && (NF<6 || $6=="") {print "  " $1 "  " $3}')
+if [ -n "$blank" ]; then
+  echo "gates.tsv has a gate with no canary field:" >&2
+  printf '%s\n' "$blank" >&2
+  echo >&2
+  echo "Name the pull request that fired it, or \`owed\` if nobody has. A gate whose canary" >&2
+  echo "nobody can name has never been proven to refuse anything." >&2
+  exit 1
+fi
+
 variant=${1:-}
 case "$variant" in
   php|js)
@@ -54,6 +67,9 @@ case "$variant" in
   '')
     echo "manifest matches the workflows"
     grep -v '^#' "$manifest" | awk -F'\t' 'NF>=4 {c[$4]++} END {for (k in c) printf "  %-10s %d\n", k, c[k]}'
+    owed=$(grep -v '^#' "$manifest" | awk -F'\t' '$4=="gate" && $6=="owed"' | wc -l | tr -d ' ')
+    gates=$(grep -v '^#' "$manifest" | awk -F'\t' '$4=="gate"' | wc -l | tr -d ' ')
+    printf '\n  %s of %s gates owe a canary\n' "$owed" "$gates"
     for v in php js; do
       n=$(grep -v '^#' "$manifest" | awk -F'\t' -v v="$v" '($1=="base"||$1==v) && $4=="gate" && $5 !~ /variant == .github./' | wc -l | tr -d ' ')
       u=$(grep -v '^#' "$manifest" | awk -F'\t' -v v="$v" '($1=="base"||$1==v) && $4=="gate" && $5 !~ /variant == .github./ && $5==""' | wc -l | tr -d ' ')
