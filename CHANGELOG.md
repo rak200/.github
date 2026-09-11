@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/rak200/.github/compare/2.5.3...2.6.0) (2026-09-11)
+
+
+### Features
+
+* a gate declares the canary that fired it, or the debt of having none ([#96](https://github.com/rak200/.github/issues/96)) ([e73b5ac](https://github.com/rak200/.github/commit/e73b5ac3a82c5d87d52ce900102544fcd340d301))
+
 ## [2.5.3](https://github.com/rak200/.github/compare/2.5.2...2.5.3) (2026-09-09)
 
 
