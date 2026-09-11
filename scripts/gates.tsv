@@ -1,4 +1,4 @@
-# workflow	job	step	class	condition
+# workflow	job	step	class	condition	canary
 #
 # The inventory of what this pipeline actually grades, and the manifest that keeps it from
 # going stale. Every named step in base.yml, php.yml and js.yml has a row; `gates.sh`
@@ -24,56 +24,74 @@
 # A `gate` row is a canary owed. `report`, `setup` and `aggregate` rows are not — but the
 # step that grades a `report` is, and it is the one worth firing at, because a green report
 # and a green grader are indistinguishable from a working control.
-base	conformance	Locate the scaffold	gate	
-base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}
-base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}
-base	conformance	Seeded files match the pinned scaffold	gate	
-base	conformance	Blame-ignore entries resolve to commits	gate	
-base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}
-base	conformance	The pinned pipeline is not obsolete	gate	
-base	conformance	README mirror badges match their sources	gate	
-base	conformance	A repository with src/ has docs/	gate	
-base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''
-base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'
-base	conformance	Delivered roadmap entries are pruned	gate	github.event_name == 'pull_request'
-base	conformance	gitleaks	gate	
-base	gate	Every job succeeded	aggregate	
-php	matrix	composer validate	gate	
-php	matrix	Composer cache directory	setup	
-php	matrix	composer install	gate	
-php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
-php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'
-php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'
-php	matrix	composer lint	gate	env.IS_FLOOR == 'true'
-php	matrix	composer analyse	gate	
-php	matrix	composer test	gate	
-php	matrix	composer coverage — floor	gate	env.IS_FLOOR == 'true'
-php	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'
-php	matrix	composer scan	report	env.IS_FLOOR == 'true'
-php	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
-php	mutation	Composer cache directory	setup	
-php	mutation	composer install	gate	
-php	mutation	composer mutation — floor (changed lines)	gate	${{ github.event_name == 'pull_request' }}
-php	mutation	composer mutation — floor (full)	gate	${{ github.event_name == 'workflow_dispatch' }}
-php	gate	Every job succeeded	aggregate	
-js	matrix	npm ci	gate	
-js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'
-js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'
-js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'
-js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'
-js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'
-js	matrix	npm run analyse	gate	
-js	matrix	Install the test browser	setup	inputs.browser
-js	matrix	npm run test	gate	
-js	matrix	npm run coverage — floor	gate	env.IS_FLOOR == 'true'
-js	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'
-js	matrix	npm run scan	report	env.IS_FLOOR == 'true'
-js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'
-js	matrix	CodeQL init	setup	env.IS_FLOOR == 'true'
-js	matrix	CodeQL analyse and publish	report	env.IS_FLOOR == 'true'
-js	matrix	CodeQL findings block the merge	gate	env.IS_FLOOR == 'true'
-js	mutation	npm ci	gate	
-js	mutation	Install the test browser	setup	inputs.browser
-js	mutation	npm run mutation — floor (changed files)	gate	${{ github.event_name == 'pull_request' }}
-js	mutation	npm run mutation — floor (full)	gate	${{ github.event_name == 'workflow_dispatch' }}
-js	gate	Every job succeeded	aggregate	
+#
+# canary    a reference to where it was FIRED — the pull request that made this gate fail on
+#           purpose, `owner/repo#n`, closed unmerged once the red was read
+#           `owed`  nobody has. Not a placeholder to leave alone: it is the debt, counted by
+#                   gates.sh so it can be read instead of remembered
+#           `-`     the row is not a `gate` and owes nothing
+#
+# Written because the owing was invisible. `gates.sh` has always refused a step that is
+# missing from this file, so a gate cannot enter the pipeline unnoticed — and nothing said
+# whether it had ever been made to fail. The mutation floor in rak200/coding-standard-ts sat
+# at 5.62% for weeks with a suite that killed every mutant: the gate could not pass, which
+# argues for its own removal exactly as one that cannot fail argues for its own sufficiency.
+# A canary fired when it entered would have found that in seconds. rak200/.github#86
+#
+# The references below are the four fired this week and verified by reading their runs. The
+# other 36 are `owed` rather than guessed: matching step names against the bodies of the 34
+# canary pull requests this estate has produced puts `base gitleaks` against rak200/ui#76,
+# which is the canary for something else entirely. A wrong reference is worse than a debt.
+base	conformance	Locate the scaffold	gate		owed
+base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}	owed
+base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}	owed
+base	conformance	Seeded files match the pinned scaffold	gate		owed
+base	conformance	Blame-ignore entries resolve to commits	gate		rak200/.github#80
+base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}	owed
+base	conformance	The pinned pipeline is not obsolete	gate		owed
+base	conformance	README mirror badges match their sources	gate		owed
+base	conformance	A repository with src/ has docs/	gate		rak200/caster#39
+base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''	owed
+base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'	owed
+base	conformance	Delivered roadmap entries are pruned	gate	github.event_name == 'pull_request'	owed
+base	conformance	gitleaks	gate		owed
+base	gate	Every job succeeded	aggregate		-
+php	matrix	composer validate	gate		owed
+php	matrix	Composer cache directory	setup		-
+php	matrix	composer install	gate		owed
+php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	owed
+php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'	owed
+php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/utils#67
+php	matrix	composer lint	gate	env.IS_FLOOR == 'true'	owed
+php	matrix	composer analyse	gate		owed
+php	matrix	composer test	gate		owed
+php	matrix	composer coverage — floor	gate	env.IS_FLOOR == 'true'	owed
+php	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'	-
+php	matrix	composer scan	report	env.IS_FLOOR == 'true'	-
+php	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'	owed
+php	mutation	Composer cache directory	setup		-
+php	mutation	composer install	gate		owed
+php	mutation	composer mutation — floor (changed lines)	gate	${{ github.event_name == 'pull_request' }}	owed
+php	mutation	composer mutation — floor (full)	gate	${{ github.event_name == 'workflow_dispatch' }}	owed
+php	gate	Every job succeeded	aggregate		-
+js	matrix	npm ci	gate		owed
+js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/ui#143
+js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	npm run analyse	gate		owed
+js	matrix	Install the test browser	setup	inputs.browser	-
+js	matrix	npm run test	gate		owed
+js	matrix	npm run coverage — floor	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'	-
+js	matrix	npm run scan	report	env.IS_FLOOR == 'true'	-
+js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	CodeQL init	setup	env.IS_FLOOR == 'true'	-
+js	matrix	CodeQL analyse and publish	report	env.IS_FLOOR == 'true'	-
+js	matrix	CodeQL findings block the merge	gate	env.IS_FLOOR == 'true'	owed
+js	mutation	npm ci	gate		owed
+js	mutation	Install the test browser	setup	inputs.browser	-
+js	mutation	npm run mutation — floor (changed files)	gate	${{ github.event_name == 'pull_request' }}	owed
+js	mutation	npm run mutation — floor (full)	gate	${{ github.event_name == 'workflow_dispatch' }}	owed
+js	gate	Every job succeeded	aggregate		-
