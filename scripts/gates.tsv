@@ -26,7 +26,9 @@
 # and a green grader are indistinguishable from a working control.
 #
 # canary    a reference to where it was FIRED — the pull request that made this gate fail on
-#           purpose, `owner/repo#n`, closed unmerged once the red was read
+#           purpose, `owner/repo#n`, closed unmerged once the red was read. Space-separated
+#           where one step grades several things and a later one was fired on its own: a gate
+#           proven on one of its comparisons says nothing about the comparison added after it
 #           `owed`  nobody has. Not a placeholder to leave alone: it is the debt, counted by
 #                   gates.sh so it can be read instead of remembered
 #           `-`     the row is not a `gate` and owes nothing
@@ -50,7 +52,7 @@ base	conformance	Blame-ignore entries resolve to commits	gate		rak200/.github#80
 base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}	owed
 base	conformance	The pinned pipeline is not obsolete	gate		owed
 base	conformance	README mirror badges match their sources	gate		owed
-base	conformance	The manifest declares the license LICENSE grants	gate		owed
+base	conformance	The manifest declares the license LICENSE grants	gate		rak200/utils#78
 base	conformance	A repository with src/ has docs/	gate		rak200/caster#39
 base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''	owed
 base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'	owed
@@ -62,7 +64,7 @@ php	matrix	Composer cache directory	setup		-
 php	matrix	composer install	gate		owed
 php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	owed
 php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'	owed
-php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/utils#67
+php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/utils#67 rak200/utils#77
 php	matrix	composer lint	gate	env.IS_FLOOR == 'true'	owed
 php	matrix	composer analyse	gate		owed
 php	matrix	composer test	gate		owed
