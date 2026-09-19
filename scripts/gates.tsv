@@ -50,6 +50,7 @@ base	conformance	Blame-ignore entries resolve to commits	gate		rak200/.github#80
 base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}	owed
 base	conformance	The pinned pipeline is not obsolete	gate		owed
 base	conformance	README mirror badges match their sources	gate		owed
+base	conformance	The manifest declares the license LICENSE grants	gate		owed
 base	conformance	A repository with src/ has docs/	gate		rak200/caster#39
 base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''	owed
 base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'	owed

@@ -239,12 +239,32 @@ jobs:
           # `engines.node` is the one mandated value that is a FLOOR and not a constant —
           # the convention says "22.13+", so a package on a later Node is conformant and a
           # package on an earlier one is not. Equality would forbid the conformant case,
-          # so this is the only comparison here with a direction.
-          mine=$(jq -r '.engines.node // empty' package.json | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
-          theirs=$(jq -r '.engines.node // empty' "$std/package.json" | grep -oP '\d+\.\d+\.\d+' | head -1 || true)
-          if [ -n "$theirs" ] && [ -n "$mine" ]; then
+          # so this is the only comparison here with a direction. It does not inherit
+          # either — npm reads no dependency's `engines` as this package's — so an ABSENT
+          # floor is no floor at all, and fails; it used to be skipped in silence, and
+          # php.yml's `require.php` comparison arrived with the same rule. Versions are
+          # padded to three parts, so `>=22` reads as `22.0.0` instead of as nothing.
+          # rak200/workflow#69
+          semver3() {   # the first version in stdin, padded to x.y.z; empty if there is none
+            local v; v=$(grep -oP '\d+(\.\d+){0,2}' | head -1 || true)
+            case $v in ''|*.*.*) ;; *.*) v=$v.0 ;; *) v=$v.0.0 ;; esac
+            echo "$v"
+          }
+          theirs=$(jq -r '.engines.node // empty' "$std/package.json" | semver3)
+          declared=$(jq -r '.engines.node // empty' package.json)
+          mine=$(printf '%s' "$declared" | semver3)
+          if [ -z "$theirs" ]; then
+            echo "::error::engines.node is not set in the pinned standard — the floor it mandates cannot be read"
+            fail=1
+          else
             compared=$((compared + 1))
-            if [ "$(printf '%s\n%s\n' "$theirs" "$mine" | sort -V | head -1)" != "$theirs" ]; then
+            if [ -z "$declared" ]; then
+              echo "::error file=package.json::engines.node is not declared here, and the standard's floor is '$theirs'"
+              fail=1
+            elif [ -z "$mine" ]; then
+              echo "::error file=package.json::engines.node is '$declared' here, which names no version to compare with the standard's floor '$theirs'"
+              fail=1
+            elif [ "$(printf '%s\n%s\n' "$theirs" "$mine" | sort -V | head -1)" != "$theirs" ]; then
               echo "::error file=package.json::engines.node is '$mine' here and the standard's floor is '$theirs'"
               fail=1
             else
