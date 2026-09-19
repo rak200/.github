@@ -80,7 +80,7 @@ php	gate	Every job succeeded	aggregate		-
 js	matrix	npm ci	gate		owed
 js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	owed
 js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'	owed
-js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/ui#143
+js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/ui#143 rak200/ui#179
 js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'	owed
 js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'	owed
 js	matrix	npm run analyse	gate		owed
