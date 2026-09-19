@@ -7,7 +7,8 @@ body:
       value: |
         **Anything substantial goes through the RFC process first.** Nothing enters the roadmap
         without an accepted proposal — see
-        [devr's `docs/proposals/`](https://github.com/rak200/devr/tree/master/docs/proposals).
+        [the proposal process](https://github.com/rak200/workflow/blob/master/proposals/README.md).
+        A repository's own proposals live in its `docs/proposals/`.
         Use this template for a self-contained addition; if the idea reshapes a design, open a
         proposal instead and link it here.
   - type: textarea
