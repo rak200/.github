@@ -639,6 +639,94 @@ jobs:
           done
           exit $fail
 
+      # `CONVENTIONS.md` §README badges requires this one badge in every repository,
+      # whatever the variant and whether or not the thing it ships is published anywhere.
+      # It is a *live* badge, so the mirror step above has nothing to compare it against
+      # and never asked for it: six of ten repositories had gone without it, every one
+      # onboarded after the convention was written. Unlike the mirror claims, this step
+      # asserts the README exists — a repository with no README is a repository making
+      # the claim nowhere. rak200/workflow#64
+      - name: The Latest tag badge names this repository
+        run: |
+          set -uo pipefail
+          [ -f README.md ] || { echo "::error::no README.md, so the required Latest tag badge is nowhere"; exit 1; }
+          fail=0
+          grep -qF "img.shields.io/github/v/tag/$GITHUB_REPOSITORY?sort=semver" README.md \
+            || { echo "::error file=README.md::the Latest tag badge for $GITHUB_REPOSITORY is absent"; fail=1; }
+          # The link is half the badge: a shield nobody can click names the tags of
+          # whatever repository the URL was copied from.
+          grep -qF "https://github.com/$GITHUB_REPOSITORY/tags" README.md \
+            || { echo "::error file=README.md::the Latest tag badge does not link to $GITHUB_REPOSITORY/tags"; fail=1; }
+          [ "$fail" = 0 ] && echo "the Latest tag badge names $GITHUB_REPOSITORY and links to its tags"
+          exit $fail
+
+      # `CONVENTIONS.md` §Repository hygiene: public documentation never depends on a
+      # private repository, because a reader outside the account finds a 404 where the
+      # reasoning should be. The estate is deliberately mixed, and nothing but a reader
+      # noticing has ever caught this.
+      #
+      # Visibility is asked of github.com ANONYMOUSLY, which is the question the rule
+      # actually poses — what someone outside the account sees — and not of the API with
+      # this job's token, which can see what they cannot. 404 therefore covers private and
+      # non-existent alike: both are the same 404 to that reader. An answer that is
+      # neither 200 nor 404 measures nothing, and the step says so rather than passing.
+      #
+      # `CHANGELOG.md` is exempt by the same convention: it is generated from released
+      # commits, and the control point is the pull request that feeds it. A private
+      # repository's own documentation is not public, so the step steps aside there.
+      # rak200/workflow#64
+      - name: Public documentation names no repository a reader cannot open
+        if: ${{ !github.event.repository.private }}
+        run: |
+          set -uo pipefail
+          owner=${GITHUB_REPOSITORY%%/*}
+          mapfile -t files < <(git ls-files '*.md' '.github/*' | grep -v '^CHANGELOG\.md$' || true)
+          [ ${#files[@]} -gt 0 ] || { echo "no public documentation to read"; exit 0; }
+          # The lookbehind keeps `.rak200/CONVENTIONS.md` and a package's `@rak200/…`
+          # scope apart: the first is a path and names no repository, the second does.
+          mapfile -t names < <(grep -hoP "(?<![.\w])\Q$owner\E/\.?[A-Za-z0-9_-]+" "${files[@]}" \
+            | cut -d/ -f2- | sort -u || true)
+          [ ${#names[@]} -gt 0 ] || { echo "no $owner/… reference in the documentation"; exit 0; }
+          fail=0
+          for name in "${names[@]}"; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -I "https://github.com/$owner/$name" || echo 000)
+            [ "$code" = 000 ] && code=$(curl -sS -o /dev/null -w '%{http_code}' -I "https://github.com/$owner/$name" || echo 000)
+            case "$code" in
+              200) echo "  $owner/$name: public" ;;
+              404) echo "::error::$owner/$name is named in this repository's public documentation and a reader outside the account gets a 404"; fail=1 ;;
+              *)   echo "::error::github.com answered $code for $owner/$name — this step measured nothing"; fail=1 ;;
+            esac
+          done
+          exit $fail
+
+      # `CONVENTIONS.md` §Security, two rules that read as checkable and were checked by
+      # nobody: never `secrets: inherit`, and untrusted values — PR titles, branch names,
+      # issue bodies — reach a script through `env:`, never through interpolation.
+      #
+      # The second grep's reach is the shape of the line, not the YAML: it fails an
+      # untrusted expression embedded in a command, a condition or a larger string, and
+      # allows one that is the whole value of a mapping key, because that is what an
+      # `env:` assignment looks like. A value handed to an action's `with:` therefore
+      # passes, which is the known edge of this check. rak200/workflow#64
+      - name: No workflow passes every secret, or interpolates an untrusted value
+        run: |
+          set -uo pipefail
+          mapfile -t files < <(git ls-files '.github/workflows/*.yml' '.github/workflows/*.yaml' || true)
+          [ ${#files[@]} -gt 0 ] || { echo "no workflows here"; exit 0; }
+          fail=0
+          if grep -nE '^[[:space:]]*secrets:[[:space:]]*inherit[[:space:]]*$' "${files[@]}"; then
+            echo "::error::a workflow passes every secret it has with \`secrets: inherit\` — name the ones the called workflow needs"
+            fail=1
+          fi
+          untrusted='github\.head_ref|github\.event\.(pull_request|issue|comment|review|discussion)[a-z_.]*\.(title|body|login|ref|label)'
+          if grep -nP "\\\$\{\{[^}]*($untrusted)" "${files[@]}" \
+             | grep -vP ':[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*\$\{\{[^}]+\}\}[[:space:]]*(#.*)?$'; then
+            echo "::error::an untrusted value is interpolated where it can be executed — pass it through \`env:\` and read the variable"
+            fail=1
+          fi
+          [ "$fail" = 0 ] && echo "checked ${#files[@]} workflow(s): no inherited secrets, no untrusted interpolation"
+          exit $fail
+
       # The detective half of secret scanning; the preventive half is the seeded
       # .githooks/pre-push. Both fired as canaries on rak200/utils on 2026-08-15, and the
       # run's log is why the two env vars below exist — see RFC 0017, *Closing what the

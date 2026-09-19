@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/rak200/.github/blob/master/SECURITY.md
     about: Do not open an issue — use private vulnerability reporting.
   - name: Design proposals (RFCs)
-    url: https://github.com/rak200/devr/tree/master/docs/proposals
+    url: https://github.com/rak200/workflow/blob/master/proposals/README.md
     about: Anything that reshapes a design is studied and decided as a proposal.
