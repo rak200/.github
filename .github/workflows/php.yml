@@ -206,6 +206,40 @@ jobs:
                 phpstan.neon.dist "$std/phpstan.neon.dist"
           agree "Infection minCoveredMsi" '"minCoveredMsi"\s*:\s*\K[0-9]+' \
                 infection.json5.dist "$std/infection.json5.dist"
+
+          # `require.php` is a FLOOR and not a constant, like `engines.node` in js.yml: a
+          # package on a later PHP is conformant and one on an earlier PHP is not, so the
+          # comparison has a direction, and equality would forbid the conformant case. It
+          # does not inherit either — Composer reads no dependency's `require.php` as this
+          # package's — so an ABSENT floor is not "the standard's is what runs": it is no
+          # floor at all, and fails. Versions are padded to three parts, or `sort -V` ranks
+          # `8.4` below `8.4.0` and reads equal floors as a weakened one. rak200/workflow#69
+          semver3() {   # the first version in stdin, padded to x.y.z; empty if there is none
+            local v; v=$(grep -oP '\d+(\.\d+){0,2}' | head -1 || true)
+            case $v in ''|*.*.*) ;; *.*) v=$v.0 ;; *) v=$v.0.0 ;; esac
+            echo "$v"
+          }
+          theirs=$(jq -r '.require.php // empty' "$std/composer.json" | semver3)
+          declared=$(jq -r '.require.php // empty' composer.json)
+          mine=$(printf '%s' "$declared" | semver3)
+          if [ -z "$theirs" ]; then
+            echo "::error::require.php is not set in the pinned standard — the floor it mandates cannot be read"
+            fail=1
+          else
+            compared=$((compared + 1))
+            if [ -z "$declared" ]; then
+              echo "::error file=composer.json::require.php is not declared here, and the standard's floor is '$theirs'"
+              fail=1
+            elif [ -z "$mine" ]; then
+              echo "::error file=composer.json::require.php is '$declared' here, which names no version to compare with the standard's floor '$theirs'"
+              fail=1
+            elif [ "$(printf '%s\n%s\n' "$theirs" "$mine" | sort -V | head -1)" != "$theirs" ]; then
+              echo "::error file=composer.json::require.php is '$mine' here and the standard's floor is '$theirs'"
+              fail=1
+            else
+              echo "require.php: '$mine', at or above the standard's floor '$theirs'"
+            fi
+          fi
           # The standard is present, so something was owed. A step that compared nothing
           # is not a step that found nothing.
           [ "$compared" -gt 0 ] || { echo "::error::the standard is installed and not one value was compared"; exit 1; }

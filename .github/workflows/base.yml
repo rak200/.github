@@ -472,6 +472,33 @@ jobs:
           fi
           exit $fail
 
+      # The step above proves the license badge matches the manifest. Nothing proved the
+      # manifest matches the license the repository grants: `LICENSE` is an `all` seed,
+      # graded byte for byte by the conformance step, so its text IS the convention — and a
+      # `license` field that disagrees with it is what a registry, a resolver and a license
+      # scanner read instead. Same manifest as the badge step: composer.json first,
+      # package.json otherwise. rak200/workflow#69
+      - name: The manifest declares the license LICENSE grants
+        run: |
+          set -uo pipefail
+          if [ -f composer.json ]; then manifest=composer.json
+          elif [ -f package.json ]; then manifest=package.json
+          else echo "no package manifest — no license field to compare"; exit 0; fi
+          # The seed's first line names it: `MIT License` grants `MIT`. A LICENSE this
+          # cannot read is a failure and not a skip, or the step passes by comparing
+          # nothing — the shape every early version of the badge step had.
+          granted=$(head -1 LICENSE 2>/dev/null | sed -nE 's/^([A-Za-z0-9.+-]+) License\r?$/\1/p')
+          if [ -z "$granted" ]; then
+            echo "::error file=LICENSE::no license identifier can be read from LICENSE's first line"
+            exit 1
+          fi
+          declared=$(jq -r '.license // empty' "$manifest")
+          if [ "$declared" != "$granted" ]; then
+            echo "::error file=$manifest::license is '${declared:-absent}' here, and LICENSE grants '$granted'"
+            exit 1
+          fi
+          echo "$manifest: license '$declared', which LICENSE grants"
+
       # `CONVENTIONS.md` §Documentation mandates two different things, and one step
       # asserting both asserted neither. This half is the mandate itself: a repository
       # with source has a `docs/`. It is separate because the branch that used to open
