@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.0](https://github.com/rak200/.github/compare/2.7.0...2.8.0) (2026-09-19)
+
+
+### Features
+
+* three rules that read as checkable get their mechanism ([#106](https://github.com/rak200/.github/issues/106)) ([e863df4](https://github.com/rak200/.github/commit/e863df46e11084b1f2f850ed4163a1a101fc5884))
+
 ## [2.7.0](https://github.com/rak200/.github/compare/2.6.0...2.7.0) (2026-09-19)
 
 
