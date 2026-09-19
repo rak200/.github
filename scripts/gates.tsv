@@ -57,9 +57,9 @@ base	conformance	A repository with src/ has docs/	gate		rak200/caster#39
 base	conformance	Public symbols appear in docs/	gate	inputs.symbol-pattern != ''	owed
 base	conformance	The PR title is a Conventional Commit	gate	github.event_name == 'pull_request'	owed
 base	conformance	Delivered roadmap entries are pruned	gate	github.event_name == 'pull_request'	owed
-base	conformance	The Latest tag badge names this repository	gate		owed
-base	conformance	Public documentation names no repository a reader cannot open	gate	${{ !github.event.repository.private }}	owed
-base	conformance	No workflow passes every secret, or interpolates an untrusted value	gate		owed
+base	conformance	The Latest tag badge names this repository	gate		rak200/utils#79
+base	conformance	Public documentation names no repository a reader cannot open	gate	${{ !github.event.repository.private }}	rak200/utils#80
+base	conformance	No workflow passes every secret, or interpolates an untrusted value	gate		rak200/utils#81
 base	conformance	gitleaks	gate		owed
 base	gate	Every job succeeded	aggregate		-
 php	matrix	composer validate	gate		owed
