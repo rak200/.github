@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/rak200/.github/compare/2.6.0...2.7.0) (2026-09-19)
+
+
+### Features
+
+* the PHP floor and the license are compared with what the estate mandates ([#102](https://github.com/rak200/.github/issues/102)) ([4befa21](https://github.com/rak200/.github/commit/4befa21d665a91c854af63117f4ddffe8f98aef0))
+
 ## [2.6.0](https://github.com/rak200/.github/compare/2.5.3...2.6.0) (2026-09-11)
 
 
