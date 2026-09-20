@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.9.0](https://github.com/rak200/.github/compare/2.8.0...2.9.0) (2026-09-20)
+
+
+### Features
+
+* the workflow-shape non-negotiables are checked, where the workflows are ([#109](https://github.com/rak200/.github/issues/109)) ([deb4ceb](https://github.com/rak200/.github/commit/deb4ceb805ca1bd9b9452cae9ee925ad98f7bc80))
+
 ## [2.8.0](https://github.com/rak200/.github/compare/2.7.0...2.8.0) (2026-09-19)
 
 
