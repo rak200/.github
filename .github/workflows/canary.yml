@@ -1,0 +1,17 @@
+# NOT FOR MERGE — a canary for the shape check. Two violations in one file: a trigger with a
+# `paths:` filter, which publishes no check at all when nothing it names changed, and an audit
+# reading a step's `conclusion`, which `continue-on-error` relabels.
+name: canary
+on:
+  push:
+    paths:
+      - "src/**"
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - id: probe
+        run: echo ok
+      - if: steps.probe.conclusion == 'success'
+        run: echo "audited the wrong field"
