@@ -47,6 +47,7 @@
 base	conformance	Locate the scaffold	gate		owed
 base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}	owed
 base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}	owed
+base	conformance	The workflows keep the shape the non-negotiables require	gate	${{ inputs.variant == 'github' }}	owed
 base	conformance	Seeded files match the pinned scaffold	gate		owed
 base	conformance	Blame-ignore entries resolve to commits	gate		rak200/.github#80
 base	conformance	The pinned scaffold is not obsolete	gate	${{ hashFiles('.rak200/scaffold/seeds.tsv') != '' }}	owed
