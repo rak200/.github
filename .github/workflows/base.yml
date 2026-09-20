@@ -123,6 +123,17 @@ jobs:
         if: ${{ inputs.variant == 'github' }}
         run: scripts/gates.sh
 
+      # Three of the non-negotiables are about the SHAPE of a workflow — the aggregator's
+      # `always()` and its equality with success, the absent `paths:` filter, `outcome`
+      # rather than `conclusion` — and each was earned by a gate that looked green and
+      # enforced nothing. They were enforced by whoever wrote the next workflow, which is
+      # how each was broken the first time. Only this repository can check them: the
+      # workflows are here. A consumer's caller is a seeded file, so a `paths:` filter
+      # added to one is caught as seed drift instead. rak200/workflow#64
+      - name: The workflows keep the shape the non-negotiables require
+        if: ${{ inputs.variant == 'github' }}
+        run: python3 scripts/workflow-shape.py
+
       - name: Seeded files match the pinned scaffold
         env:
           VARIANT: ${{ inputs.variant }}
