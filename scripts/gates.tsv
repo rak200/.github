@@ -46,14 +46,15 @@
 # rak200/ui#76, whose runs never reddened it. Taking any red inside a canary branch puts the
 # public-symbol gate against six rounds of that same pull request, which only carried the fixture
 # round 4 planted — a round leaves its plant in the branch and the next round's run reddens it
-# again. It is the COMMIT SUBJECT that says which red was the one planted, and the four rows still
-# reading `owed` are the four no run answers. A wrong reference is worse than a debt.
+# again. It is the COMMIT SUBJECT that says which red was the one planted. A wrong reference is
+# worse than a debt, and no row reads `owed` today — which records that each fired once, and
+# nothing about whether it still refuses.
 #
 # The mutation rows are read a step at a time: those steps ran inside `matrix` until they were
 # given a job of their own, and what they grade did not change with the move. rak200/.github#113
 base	conformance	Locate the scaffold	gate		rak200/utils#49
-base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}	owed
-base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}	owed
+base	conformance	Every workflow the seeds pin is callable	gate	${{ inputs.variant == 'github' }}	rak200/.github#115
+base	conformance	The gate inventory matches the workflows	gate	${{ inputs.variant == 'github' }}	rak200/.github#116
 base	conformance	The workflows keep the shape the non-negotiables require	gate	${{ inputs.variant == 'github' }}	rak200/.github#111
 base	conformance	Seeded files match the pinned scaffold	gate		rak200/utils#5
 base	conformance	Blame-ignore entries resolve to commits	gate		rak200/.github#80
@@ -93,14 +94,14 @@ js	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	rak200/ui#
 js	matrix	README mirror badges match their sources	gate	env.IS_FLOOR == 'true'	rak200/ui#76
 js	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/ui#143 rak200/ui#179
 js	matrix	npm run validate	gate	env.IS_FLOOR == 'true'	rak200/ui#76
-js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	npm run lint	gate	env.IS_FLOOR == 'true'	rak200/coding-standard-ts#98
 js	matrix	npm run analyse	gate		rak200/coding-standard-ts#53
 js	matrix	Install the test browser	setup	inputs.browser	-
 js	matrix	npm run test	gate		rak200/ui#76
 js	matrix	npm run coverage — floor	gate	env.IS_FLOOR == 'true'	rak200/ui#76
 js	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'	-
 js	matrix	npm run scan	report	env.IS_FLOOR == 'true'	-
-js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'	owed
+js	matrix	Scanner findings block the merge	gate	env.IS_FLOOR == 'true'	rak200/coding-standard-ts#99
 js	matrix	CodeQL init	setup	env.IS_FLOOR == 'true'	-
 js	matrix	CodeQL analyse and publish	report	env.IS_FLOOR == 'true'	-
 js	matrix	CodeQL findings block the merge	gate	env.IS_FLOOR == 'true'	rak200/coding-standard-ts#53
