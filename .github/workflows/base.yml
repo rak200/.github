@@ -780,6 +780,9 @@ jobs:
           # *Security of an automated no-PR fan-out*.
           GITLEAKS_ENABLE_COMMENTS: false
 
+      - name: canary — a step the inventory does not declare
+        run: ':'
+
   gate:
     name: gate
     if: ${{ always() && inputs.publish-gate }}
