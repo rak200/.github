@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/rak200/.github/compare/2.10.0...2.11.0) (2026-09-23)
+
+
+### Features
+
+* the suite fails on a warning and on a risky test, and something checks ([#122](https://github.com/rak200/.github/issues/122)) ([9792b89](https://github.com/rak200/.github/commit/9792b895895984f3e73d89ca479eba7c746d979c))
+
 ## [2.10.0](https://github.com/rak200/.github/compare/2.9.0...2.10.0) (2026-09-23)
 
 
