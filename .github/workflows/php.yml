@@ -245,6 +245,40 @@ jobs:
           [ "$compared" -gt 0 ] || { echo "::error::the standard is installed and not one value was compared"; exit 1; }
           exit $fail
 
+      # PHPStan fails LOUDLY when its config is forgotten — no `includes`, no `level`, and
+      # the analyser refuses to start. The formatter does not: php-cs-fixer falls back to
+      # its own defaults, or to whatever rule set the repository wrote itself, and
+      # `composer lint` passes against a standard nobody chose. That asymmetry is the whole
+      # reason this step exists and PHPStan has none like it.
+      #
+      # `setRules()` is checked as well as the `require`, and it is the half that matters.
+      # `Config::setRules()` REPLACES; php-cs-fixer has no `addRules`. So a repository can
+      # require this standard and then discard every rule in it on the next line, passing
+      # any check that only looks for the require. The documented shape is the whole
+      # contract — the rules are the standard, the finder is the repository's.
+      - name: The formatter config is this standard's
+        if: env.IS_FLOOR == 'true'   # style is version-invariant
+        run: |
+          set -uo pipefail
+          std=vendor/rak200/coding-standard-php
+          [ -d "$std" ] || { echo "no pinned standard under vendor/ — this repository is it"; exit 0; }
+          cfg=.php-cs-fixer.dist.php
+          if [ ! -f "$cfg" ]; then
+            echo "::error::$cfg is absent, so the lint verb runs against php-cs-fixer's own defaults"
+            exit 1
+          fi
+          fail=0
+          if ! grep -q "$std/.php-cs-fixer.dist.php" "$cfg"; then
+            echo "::error file=$cfg::does not require the pinned standard's config, so it configures a different standard"
+            fail=1
+          fi
+          if grep -qE '(^|[^[:alnum:]_$])setRules[[:space:]]*\(' "$cfg"; then
+            echo "::error file=$cfg::calls setRules(), which REPLACES the standard's rules rather than extending them — the finder is yours, the rules are not"
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] && echo "$cfg requires the pinned standard and overrides none of its rules"
+          exit $fail
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
