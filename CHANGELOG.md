@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.0](https://github.com/rak200/.github/compare/2.9.0...2.10.0) (2026-09-23)
+
+
+### Features
+
+* the formatter config a repository lints against is the pinned standard's ([#119](https://github.com/rak200/.github/issues/119)) ([cd17d2e](https://github.com/rak200/.github/commit/cd17d2e2ec840b98decd29bcb25d1813296962f3))
+
 ## [2.9.0](https://github.com/rak200/.github/compare/2.8.0...2.9.0) (2026-09-20)
 
 
