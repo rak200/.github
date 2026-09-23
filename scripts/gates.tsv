@@ -77,7 +77,7 @@ php	matrix	composer install	gate		rak200/caster#11
 php	matrix	The task vocabulary is declared	gate	env.IS_FLOOR == 'true'	rak200/caster#8
 php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR == 'true'	rak200/caster#9
 php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/utils#67 rak200/utils#77
-php	matrix	The formatter config is this standard's	gate	env.IS_FLOOR == 'true'	owed
+php	matrix	The formatter config is this standard's	gate	env.IS_FLOOR == 'true'	rak200/caster#55
 php	matrix	composer lint	gate	env.IS_FLOOR == 'true'	rak200/utils#22
 php	matrix	composer analyse	gate		rak200/caster#5
 php	matrix	composer test	gate		rak200/utils#49
