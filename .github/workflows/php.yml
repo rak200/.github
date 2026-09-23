@@ -320,6 +320,48 @@ jobs:
           [ "$fail" -eq 0 ] && echo "$cfg enables failOnWarning and failOnRisky"
           exit $fail
 
+      # One direction only, and deliberately: an extension the shipped code USES must be
+      # declared. The converse — an extension declared and barely used — is a judgement
+      # about whether an equivalent exists, and a judgement is a clause rather than a gate.
+      # `rak200/coding-standard-php`'s CONVENTIONS.md §Baseline carries that half.
+      #
+      # Nothing that RUNS can catch this. `setup-php` above installs `mbstring, bcmath`
+      # unconditionally — the union of what this estate's manifests declare — so the suite,
+      # the analyser and the scanner all pass on a repository that forgot the declaration.
+      # It surfaces only where the package is installed by someone else, and Composer
+      # refuses on a platform requirement that was never written down.
+      #
+      # REACH: the two extensions below, because there is no generic answer. An extension
+      # is proven in use by its own surface, and that surface differs per extension —
+      # `bcmath` is reached through `bc*` functions AND through the `BcMath\` namespace,
+      # which is how PHP 8.4 exposes it and how both repositories here actually use it. An
+      # extension outside this table is declared, or not, with nothing watching.
+      - name: An extension in use is an extension declared
+        if: env.IS_FLOOR == 'true'   # the source is version-invariant
+        run: |
+          set -uo pipefail
+          [ -d src ] || { echo "no src/ — this repository ships nothing to install"; exit 0; }
+          trees=src
+          [ -d bin ] && trees="src bin"
+          fail=0
+          prove() {   # $1 extension, $2 the ERE that proves the shipped code reaches it
+            local hit
+            hit=$(grep -rnoE "$2" $trees 2>/dev/null | head -1 || true)
+            if [ -z "$hit" ]; then
+              echo "ext-$1: not reached by $trees"
+              return 0
+            fi
+            if jq -e --arg e "ext-$1" '.require[$e] // empty' composer.json >/dev/null 2>&1; then
+              echo "ext-$1: reached and declared"
+            else
+              echo "::error file=composer.json::ext-$1 is reached by ${hit%%:*} and is not declared under require — Composer will install this package where the extension is absent"
+              fail=1
+            fi
+          }
+          prove mbstring '\bmb_[a-z_]+[[:space:]]*\('
+          prove bcmath '(\bbc(add|sub|mul|divmod|div|mod|powmod|pow|sqrt|comp|scale)[[:space:]]*\()|(BcMath\\)'
+          exit $fail
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
