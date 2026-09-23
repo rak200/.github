@@ -279,6 +279,47 @@ jobs:
           [ "$fail" -eq 0 ] && echo "$cfg requires the pinned standard and overrides none of its rules"
           exit $fail
 
+      # Both attributes default to FALSE — read off the `phpunit.xsd` shipped with the
+      # pinned PHPUnit, not assumed — so an absent one is a disabled one, and a suite that
+      # never declares them passes a risky or warning-emitting test in silence. That is the
+      # same quiet the two flags exist to close, which is why absence fails here rather
+      # than being reported.
+      #
+      # Whichever file the RUNNER would read: PHPUnit takes `phpunit.xml` when it exists
+      # and falls back to `phpunit.xml.dist`. Naming one of them would grade a repository
+      # against a file PHPUnit ignores, and the estate currently holds both spellings.
+      #
+      # `1` is accepted beside `true` because the attribute is `xs:boolean` in the schema
+      # and both are valid there. Reach: this reads the configuration FILE. A repository
+      # that passes `--fail-on-risky` on the command line instead is failed by this step,
+      # deliberately — the rule names the file, and a flag buried in a script is invisible
+      # to the next person who opens the config.
+      - name: The suite fails on a warning and on a risky test
+        if: env.IS_FLOOR == 'true'   # the configuration is version-invariant
+        run: |
+          set -uo pipefail
+          cfg=
+          for candidate in phpunit.xml phpunit.xml.dist; do
+            [ -f "$candidate" ] && { cfg=$candidate; break; }
+          done
+          if [ -z "$cfg" ]; then
+            echo "::error::neither phpunit.xml nor phpunit.xml.dist is present, so the suite runs with both flags at their default of false"
+            exit 1
+          fi
+          fail=0
+          for flag in failOnWarning failOnRisky; do
+            value=$(grep -oE "${flag}=\"[^\"]*\"" "$cfg" | head -1 | cut -d'"' -f2)
+            if [ -z "$value" ]; then
+              echo "::error file=$cfg::$flag is not declared, and PHPUnit's default is false"
+              fail=1
+            elif [ "$value" != "true" ] && [ "$value" != "1" ]; then
+              echo "::error file=$cfg::$flag is '$value'"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "$cfg enables failOnWarning and failOnRisky"
+          exit $fail
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
