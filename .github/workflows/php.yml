@@ -308,7 +308,11 @@ jobs:
           fi
           fail=0
           for flag in failOnWarning failOnRisky; do
-            value=$(grep -oE "${flag}=\"[^\"]*\"" "$cfg" | head -1 | cut -d'"' -f2)
+            # `|| true` is load-bearing. GitHub runs `run:` under `bash -e`, which the step's
+            # own `set -uo pipefail` adds to rather than replaces, so an unmatched grep aborts
+            # the shell right here — on the *attribute not declared* case, before the branch
+            # that explains it. Right verdict, no reason printed. Found by the canary.
+            value=$(grep -oE "${flag}=\"[^\"]*\"" "$cfg" | head -1 | cut -d'"' -f2 || true)
             if [ -z "$value" ]; then
               echo "::error file=$cfg::$flag is not declared, and PHPUnit's default is false"
               fail=1
