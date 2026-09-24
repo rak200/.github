@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.1](https://github.com/rak200/.github/compare/2.11.0...2.11.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* the flags gate reddened without saying why ([#125](https://github.com/rak200/.github/issues/125)) ([fd5c201](https://github.com/rak200/.github/commit/fd5c2018bc79780a3ccef428606711d1962862b6))
+
 ## [2.11.0](https://github.com/rak200/.github/compare/2.10.0...2.11.0) (2026-09-23)
 
 
