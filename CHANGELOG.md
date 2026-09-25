@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.0](https://github.com/rak200/.github/compare/2.11.1...2.12.0) (2026-09-25)
+
+
+### Features
+
+* every symbol used is a symbol declared ([#130](https://github.com/rak200/.github/issues/130)) ([f118ac3](https://github.com/rak200/.github/commit/f118ac38a2f0bca0e5ca9c15f60a9a6addc6042a))
+
 ## [2.11.1](https://github.com/rak200/.github/compare/2.11.0...2.11.1) (2026-09-24)
 
 
