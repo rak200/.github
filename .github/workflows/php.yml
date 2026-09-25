@@ -324,6 +324,38 @@ jobs:
           [ "$fail" -eq 0 ] && echo "$cfg enables failOnWarning and failOnRisky"
           exit $fail
 
+      # Nothing that RUNS can find an undeclared platform requirement. `setup-php` installs
+      # `mbstring, bcmath` unconditionally — the union of what this estate's manifests
+      # declare — so the suite, the analyser and the scanner all pass on a package that
+      # forgot one, and the failure waits for whoever installs it. This resolves every
+      # symbol the package uses against its installed graph instead: extensions and
+      # packages alike, with no per-extension table to keep.
+      #
+      # A table is what this step replaced. Its first version matched `mb_*` and `BcMath\`
+      # with grep, knew two extensions, and passed BOTH repositories that actually shipped
+      # an undeclared requirement — rak200/.github#124, closed unmerged with the
+      # measurement on it.
+      #
+      # The binary comes from the standard, which has carried it since 0.5.1. Its absence
+      # FAILS rather than skips: every repository running this pipeline installs the
+      # standard, so a missing binary means a pin too old to be graded, and a step that
+      # cannot grade must say so rather than pass.
+      #
+      # `composer-require-checker.json` beside `composer.json` is read WITHOUT a flag —
+      # measured both ways on rak200/utils, which whitelists `iconv` there because it is
+      # reached twice behind `function_exists` and declared under `suggest`: clean with the
+      # file, and naming `iconv` without it.
+      - name: Every symbol used is a symbol declared
+        if: env.IS_FLOOR == 'true'   # the source and the manifest are version-invariant
+        run: |
+          set -uo pipefail
+          bin=vendor/bin/composer-require-checker
+          if [ ! -x "$bin" ]; then
+            echo "::error file=composer.json::$bin is absent — the standard has carried ComposerRequireChecker since 0.5.1, so this repository is pinned to one too old for this step to grade"
+            exit 1
+          fi
+          "$bin" check composer.json
+
       - name: composer lint
         if: env.IS_FLOOR == 'true'   # style is version-invariant
         run: composer lint
