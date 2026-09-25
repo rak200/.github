@@ -79,6 +79,7 @@ php	matrix	README PHPStan badge matches the effective level	gate	env.IS_FLOOR ==
 php	matrix	A repository may not weaken a mandated value	gate	env.IS_FLOOR == 'true'	rak200/utils#67 rak200/utils#77
 php	matrix	The formatter config is this standard's	gate	env.IS_FLOOR == 'true'	rak200/caster#55
 php	matrix	The suite fails on a warning and on a risky test	gate	env.IS_FLOOR == 'true'	rak200/caster#57
+php	matrix	Every symbol used is a symbol declared	gate	env.IS_FLOOR == 'true'	owed
 php	matrix	composer lint	gate	env.IS_FLOOR == 'true'	rak200/utils#22
 php	matrix	composer analyse	gate		rak200/caster#5
 php	matrix	composer test	gate		rak200/utils#49
