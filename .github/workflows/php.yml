@@ -306,13 +306,21 @@ jobs:
             echo "::error::neither phpunit.xml nor phpunit.xml.dist is present, so the suite runs with both flags at their default of false"
             exit 1
           fi
+          # Read as XML, off the root element: a comment or any other text that merely NAMES the
+          # attribute cannot stand in for it, which the grep this replaced allowed — an absent
+          # attribute beside a comment quoting it passed, measured. SimpleXML is on the runner, as
+          # `composer coverage` in rak200/coding-standard-php already proves. Exit 2: not well-formed.
+          attr() {
+            php -r '$x = @simplexml_load_file($argv[1]); if ($x === false) { exit(2); } $a = $x->attributes(); echo isset($a[$argv[2]]) ? (string) $a[$argv[2]] : "";' "$cfg" "$1"
+          }
           fail=0
           for flag in failOnWarning failOnRisky; do
-            # `|| true` is load-bearing. GitHub runs `run:` under `bash -e`, which the step's
-            # own `set -uo pipefail` adds to rather than replaces, so an unmatched grep aborts
-            # the shell right here — on the *attribute not declared* case, before the branch
-            # that explains it. Right verdict, no reason printed. Found by the canary.
-            value=$(grep -oE "${flag}=\"[^\"]*\"" "$cfg" | head -1 | cut -d'"' -f2 || true)
+            # `if !` rather than a bare assignment: GitHub runs `run:` under `bash -e`, and a
+            # failing substitution would end the step before its reason is printed — #125.
+            if ! value=$(attr "$flag"); then
+              echo "::error file=$cfg::$cfg is not well-formed XML, so $flag cannot be read"
+              exit 1
+            fi
             if [ -z "$value" ]; then
               echo "::error file=$cfg::$flag is not declared, and PHPUnit's default is false"
               fail=1
@@ -374,9 +382,19 @@ jobs:
             echo "::error::neither phpunit.xml nor phpunit.xml.dist is present, so requireCoverageMetadata is at its default of false"
             exit 1
           fi
-          # `|| true` is load-bearing: GitHub runs `run:` under `bash -e`, and an unmatched
-          # grep would end the step before the branch that explains it — #125.
-          value=$(grep -oE 'requireCoverageMetadata="[^"]*"' "$cfg" | head -1 | cut -d'"' -f2 || true)
+          # Read as XML, off the root element: a comment or any other text that merely NAMES the
+          # attribute cannot stand in for it, which the grep this replaced allowed — an absent
+          # attribute beside a comment quoting it passed, measured. SimpleXML is on the runner, as
+          # `composer coverage` in rak200/coding-standard-php already proves. Exit 2: not well-formed.
+          attr() {
+            php -r '$x = @simplexml_load_file($argv[1]); if ($x === false) { exit(2); } $a = $x->attributes(); echo isset($a[$argv[2]]) ? (string) $a[$argv[2]] : "";' "$cfg" "$1"
+          }
+          # `if !` for the reason #125 gives: under `bash -e` a failing substitution ends the
+          # step before its reason is printed.
+          if ! value=$(attr requireCoverageMetadata); then
+            echo "::error file=$cfg::$cfg is not well-formed XML, so requireCoverageMetadata cannot be read"
+            exit 1
+          fi
           if [ -z "$value" ]; then
             echo "::error file=$cfg::requireCoverageMetadata is not declared, and PHPUnit's default is false — a test class that names nothing it covers passes"
             exit 1
