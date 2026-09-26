@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.13.0](https://github.com/rak200/.github/compare/2.12.0...2.13.0) (2026-09-26)
+
+
+### Features
+
+* every test names what it covers ([#134](https://github.com/rak200/.github/issues/134)) ([05bff13](https://github.com/rak200/.github/commit/05bff1394de7768a5631d0cf450d755eef2d5922))
+
 ## [2.12.0](https://github.com/rak200/.github/compare/2.11.1...2.12.0) (2026-09-25)
 
 
