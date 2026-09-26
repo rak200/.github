@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.13.1](https://github.com/rak200/.github/compare/2.13.0...2.13.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* a comment cannot stand in for an attribute ([#137](https://github.com/rak200/.github/issues/137)) ([f10ee71](https://github.com/rak200/.github/commit/f10ee71abd5282e112c49cdcdc69938d6bf8838b))
+
 ## [2.13.0](https://github.com/rak200/.github/compare/2.12.0...2.13.0) (2026-09-26)
 
 
