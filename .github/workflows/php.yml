@@ -345,6 +345,48 @@ jobs:
       # measured both ways on rak200/utils, which whitelists `iconv` there because it is
       # reached twice behind `function_exists` and declared under `suggest`: clean with the
       # file, and naming `iconv` without it.
+      # `requireCoverageMetadata` makes a test class that names neither `#[CoversClass]` nor
+      # `#[CoversNothing]` risky, and the step above guarantees `failOnRisky` turns that red.
+      # Like the flags above it, the attribute defaults to FALSE — read off the `phpunit.xsd`
+      # shipped with the pinned PHPUnit — so an absent one is a disabled one, and absence
+      # fails here.
+      #
+      # Its own step rather than a third flag in the loop above, for the reason `gates.tsv`
+      # gives: a gate proven on one comparison says nothing about a comparison added after
+      # it, so this one is fired on its own.
+      #
+      # What it buys is attribution, not presence. Under it, coverage counts only against
+      # declared targets, so a test stops taking credit for code it merely passes through —
+      # which on rak200/utils surfaced three mutants that `RandTest`, `EnumTest` and
+      # `FilterTest` had been killing in passing while the tests that own the code did not.
+      - name: Every test names what it covers
+        if: env.IS_FLOOR == 'true'   # the configuration is version-invariant
+        run: |
+          set -uo pipefail
+          cfg=
+          for candidate in phpunit.xml phpunit.xml.dist; do
+            [ -f "$candidate" ] && { cfg=$candidate; break; }
+          done
+          # Unreachable while the step above precedes this one: it fails first, on this same
+          # condition, in the same job. Kept against a reordering, and not claimed as proven —
+          # the canary for this step can fire only the two comparisons below.
+          if [ -z "$cfg" ]; then
+            echo "::error::neither phpunit.xml nor phpunit.xml.dist is present, so requireCoverageMetadata is at its default of false"
+            exit 1
+          fi
+          # `|| true` is load-bearing: GitHub runs `run:` under `bash -e`, and an unmatched
+          # grep would end the step before the branch that explains it — #125.
+          value=$(grep -oE 'requireCoverageMetadata="[^"]*"' "$cfg" | head -1 | cut -d'"' -f2 || true)
+          if [ -z "$value" ]; then
+            echo "::error file=$cfg::requireCoverageMetadata is not declared, and PHPUnit's default is false — a test class that names nothing it covers passes"
+            exit 1
+          fi
+          if [ "$value" != "true" ] && [ "$value" != "1" ]; then
+            echo "::error file=$cfg::requireCoverageMetadata is '$value'"
+            exit 1
+          fi
+          echo "$cfg requires every test to name what it covers"
+
       - name: Every symbol used is a symbol declared
         if: env.IS_FLOOR == 'true'   # the source and the manifest are version-invariant
         run: |
