@@ -82,7 +82,7 @@ php	matrix	The suite fails on a warning and on a risky test	gate	env.IS_FLOOR ==
 php	matrix	Every test names what it covers	gate	env.IS_FLOOR == 'true'	rak200/caster#63 rak200/caster#64
 php	matrix	Every symbol used is a symbol declared	gate	env.IS_FLOOR == 'true'	rak200/caster#61
 php	matrix	composer lint	gate	env.IS_FLOOR == 'true'	rak200/utils#22
-php	matrix	composer analyse	gate		rak200/caster#5 rak200/caster#69
+php	matrix	composer analyse	gate		rak200/caster#5 rak200/caster#69 rak200/caster#71
 php	matrix	composer test	gate		rak200/utils#49
 php	matrix	composer coverage — floor	gate	env.IS_FLOOR == 'true'	rak200/utils#21
 php	matrix	Install semgrep	setup	env.IS_FLOOR == 'true'	-
