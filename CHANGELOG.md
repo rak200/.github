@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.16.0](https://github.com/rak200/.github/compare/2.15.0...2.16.0) (2026-10-04)
+
+
+### Features
+
+* the ESLint rules are compared as ESLint resolves them ([#151](https://github.com/rak200/.github/issues/151)) ([99c5ddc](https://github.com/rak200/.github/commit/99c5ddc3841c6a7fd3af0124911843a0148b8cb4))
+
 ## [2.15.0](https://github.com/rak200/.github/compare/2.14.0...2.15.0) (2026-10-04)
 
 
