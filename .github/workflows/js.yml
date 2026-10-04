@@ -196,10 +196,12 @@ jobs:
       # `node_modules/`, so this needs no new home for the value — only the files the
       # badge step above already reads. rak200/workflow#69
       #
-      # Compared only where the repository restates a value. A config that merely spreads
-      # `...base` has nothing to disagree with, and the standard itself has nothing above
-      # it: npm installs no copy of a package into its own `node_modules/`, which is what
-      # the guard below detects.
+      # The ESLint tier is compared only where the repository restates it: a config that
+      # merely spreads `...base` has nothing to disagree with. The mutation floor and the
+      # tsconfig options are compared as their tools resolve them, so a config that leaves
+      # the standard out is caught as well. The standard itself has nothing above it: npm
+      # installs no copy of a package into its own `node_modules/`, which is what the guard
+      # below detects.
       - name: A repository may not weaken a mandated value
         if: env.IS_FLOOR == 'true'
         run: |
@@ -231,8 +233,41 @@ jobs:
             fi
             echo "$1: '$mine', and the standard agrees"
           }
-          agree "Stryker thresholds.break" 'thresholds:\s*\{[^}]*break:\s*\K[0-9]+' \
-                stryker.config.js "$std/stryker.base.js"
+          # The mutation floor as Stryker resolves it, by importing the config Stryker loads.
+          # A config that does not spread the standard restates nothing, and Stryker then
+          # runs on its own default, `thresholds.break: null` — a floor that never fails. So
+          # the value is read from the module rather than its text, and a missing config
+          # fails: measured on rak200/ui, a config written without the standard passed every
+          # other check here, the badge included, while the run's own report recorded
+          # `break: null`. rak200/coding-standard-ts#25
+          floor() {   # $1 a Stryker config module — its default export's thresholds.break, or `unset`
+            node --input-type=module -e '
+              try {
+                const { default: config } = await import(process.argv[1]);
+                const value = config?.thresholds?.break;
+                console.log(value === undefined || value === null ? "unset" : String(value));
+              } catch (error) {
+                console.log(`unreadable: ${String(error?.message ?? error).split("\n")[0]}`);
+              }
+            ' "$(realpath "$1")"
+          }
+          theirs=$(floor "$std/stryker.base.js")
+          if ! [[ $theirs =~ ^[0-9]+$ ]]; then
+            echo "::error::thresholds.break cannot be read from the pinned standard's stryker.base.js — $theirs"
+            fail=1
+          elif [ ! -f stryker.config.js ]; then
+            echo "::error::no stryker.config.js here, so Stryker runs on its own default — thresholds.break null, which never fails — against the standard's '$theirs'"
+            fail=1
+          else
+            compared=$((compared + 1))
+            mine=$(floor stryker.config.js)
+            if [ "$mine" != "$theirs" ]; then
+              echo "::error file=stryker.config.js::thresholds.break resolves to '$mine' here and is '$theirs' in the pinned standard"
+              fail=1
+            else
+              echo "Stryker thresholds.break: '$mine' as Stryker resolves it, and the standard agrees"
+            fi
+          fi
           agree "ESLint tier" 'tseslint\.configs\.\K(?:strict|recommended)TypeChecked' \
                 eslint.config.js "$std/eslint.base.js"
 
