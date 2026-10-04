@@ -167,12 +167,12 @@ jobs:
       # so this comparison needs no new home for the value — only the two files the
       # PHPStan claim above already opens. rak200/workflow#69
       #
-      # The PHPStan level is compared only where the repository restates it: a consumer
-      # that merely `includes:` the standard has nothing to disagree with. Infection's
-      # floor is compared as Infection resolves it, because Infection has no `includes` —
-      # a repository's config is the whole config, and a value it leaves out is no value.
-      # The standard itself has nothing above it: Composer installs no copy of a package
-      # into its own `vendor/`, which is what the guard below detects.
+      # Every value is compared as its tool resolves it, never as a file spells it. A config
+      # that leaves the standard out restates nothing, and reading that silence as "the
+      # standard's value is what runs" is how a repository could run with no mutation floor
+      # while this step said 100. The standard itself has nothing above it: Composer
+      # installs no copy of a package into its own `vendor/`, which is what the guard below
+      # detects.
       - name: A repository may not weaken a mandated value
         if: env.IS_FLOOR == 'true'
         run: |
@@ -181,31 +181,57 @@ jobs:
           [ -d "$std" ] || { echo "no pinned standard under vendor/ — this repository is it"; exit 0; }
           fail=0
           compared=0
-          # A comment ABOUT a value reads exactly like the value to these patterns, and the
-          # first textual hit wins — so comment lines are dropped before matching, '#' for
-          # NEON and '//' for JSON5 and JS. rak200/.github#87
-          nocomment() { grep -vE '^[[:space:]]*(#|//)' "$1" 2>/dev/null; }
-          agree() {   # $1 label, $2 PCRE, $3 file here, $4 the same file in the standard
-            local mine theirs
-            theirs=$(nocomment "$4" | grep -oP "$2" | head -1 || true)
-            if [ -z "$theirs" ]; then
-              echo "::error::$1 is not set in the pinned standard — the value it mandates cannot be read"
-              fail=1; return 0
+          # The analyser's settings as PHPStan resolves them through `includes`, with
+          # `phpstan dump-parameters`: every parameter the standard's config sets must resolve
+          # here to the standard's value. `rak200` differs in kind. It exists only when the
+          # standard's config is included, which is what registers the standard's rules, and
+          # `rak200.documented` is the repository's to replace — so it must be present and name
+          # a directory, and its value is not compared. Measured on rak200/utils: a config
+          # without the standard but with `level: max` passed here while the standard's rules,
+          # `treatPhpDocTypesAsCertain: false` and `reportIgnoresWithoutComments` were gone; and
+          # with the standard included, `reportIgnoresWithoutComments: false` passed every
+          # verb. rak200/coding-standard-ts#25
+          params() {   # $1 a PHPStan config — its resolved parameters as JSON; on failure, the reason
+            local out err
+            err=$(mktemp)
+            if out=$(vendor/bin/phpstan dump-parameters --json --no-ansi -c "$1" 2>"$err") \
+                && jq -e . >/dev/null 2>&1 <<< "$out"; then
+              printf '%s' "$out"; rm -f "$err"; return 0
             fi
-            compared=$((compared + 1))
-            mine=$(nocomment "$3" | grep -oP "$2" | head -1 || true)
-            if [ -z "$mine" ]; then
-              echo "$1: not restated here, so the standard's '$theirs' is what runs"
-              return 0
-            fi
-            if [ "$mine" != "$theirs" ]; then
-              echo "::error file=$3::$1 is '$mine' here and '$theirs' in the pinned standard"
-              fail=1; return 0
-            fi
-            echo "$1: '$mine', and the standard agrees"
+            grep -m1 -v -E '^[[:space:]]*$' "$err" | sed -E 's/^[[:space:]]+//'; rm -f "$err"; return 1
           }
-          agree "PHPStan level" '(?<=level:\s)\S+' \
-                phpstan.neon.dist "$std/phpstan.neon.dist"
+          mapfile -t keys < <(awk '/^parameters:/ { on = 1; next } /^[^[:space:]#]/ { on = 0 }
+            on && /^    [A-Za-z_][A-Za-z0-9_]*:/ { sub(/^    /, ""); sub(/:.*/, ""); print }' \
+            "$std/phpstan.neon.dist")
+          if ! theirs=$(params "$std/phpstan.neon.dist") || [ ${#keys[@]} -eq 0 ]; then
+            echo "::error::the pinned standard's phpstan.neon.dist cannot be resolved — ${theirs:-it sets no parameter}"
+            fail=1
+          elif [ ! -f phpstan.neon.dist ]; then
+            echo "::error::no phpstan.neon.dist here, so PHPStan runs on none of the standard's settings"
+            fail=1
+          elif ! mine=$(params phpstan.neon.dist); then
+            echo "::error file=phpstan.neon.dist::PHPStan cannot resolve it — $mine"
+            fail=1
+          else
+            differ=0
+            for key in "${keys[@]}"; do
+              compared=$((compared + 1))
+              if [ "$key" = rak200 ]; then
+                if [ "$(jq -r '.rak200.documented // [] | length' <<< "$mine")" -eq 0 ]; then
+                  echo "::error file=phpstan.neon.dist::the standard's config is not included here, or rak200.documented names no directory — its rules read nothing"
+                  fail=1; differ=1
+                fi
+                continue
+              fi
+              a=$(jq -c --arg k "$key" '.[$k]' <<< "$mine")
+              b=$(jq -c --arg k "$key" '.[$k]' <<< "$theirs")
+              if [ "$a" != "$b" ]; then
+                echo "::error file=phpstan.neon.dist::$key resolves to $a here and is $b in the pinned standard"
+                fail=1; differ=1
+              fi
+            done
+            [ "$differ" -eq 1 ] || echo "PHPStan: the ${#keys[@]} parameters the standard sets resolve to its values"
+          fi
 
           # The mutation floor as Infection resolves it: read with `json5_decode`, the parser
           # Infection reads its own config with. Infection has no `includes`, so a config
