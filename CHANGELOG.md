@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.0](https://github.com/rak200/.github/compare/2.17.0...2.18.0) (2026-10-04)
+
+
+### Features
+
+* the PHPStan settings are compared as PHPStan resolves them ([#156](https://github.com/rak200/.github/issues/156)) ([58f719a](https://github.com/rak200/.github/commit/58f719a2fa3616f89b4ff4b8252cfdabd6852fbd))
+
 ## [2.17.0](https://github.com/rak200/.github/compare/2.16.0...2.17.0) (2026-10-04)
 
 
