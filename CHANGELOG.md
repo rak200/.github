@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.17.0](https://github.com/rak200/.github/compare/2.16.0...2.17.0) (2026-10-04)
+
+
+### Features
+
+* the Infection floor is compared as Infection resolves it ([#154](https://github.com/rak200/.github/issues/154)) ([847e6e5](https://github.com/rak200/.github/commit/847e6e578d95a86b03a5fae2a01bf24831d939e4))
+
 ## [2.16.0](https://github.com/rak200/.github/compare/2.15.0...2.16.0) (2026-10-04)
 
 
