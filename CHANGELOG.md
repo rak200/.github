@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.19.0](https://github.com/rak200/.github/compare/2.18.0...2.19.0) (2026-10-04)
+
+
+### Features
+
+* a repository may not re-declare a package the standard brings ([#159](https://github.com/rak200/.github/issues/159)) ([866f6be](https://github.com/rak200/.github/commit/866f6beccf125f2957710cb2708a24611f0ec8c2))
+
 ## [2.18.0](https://github.com/rak200/.github/compare/2.17.0...2.18.0) (2026-10-04)
 
 
