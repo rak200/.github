@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.15.0](https://github.com/rak200/.github/compare/2.14.0...2.15.0) (2026-10-04)
+
+
+### Features
+
+* every compiler option the standard sets is compared as tsc resolves it ([#149](https://github.com/rak200/.github/issues/149)) ([4581961](https://github.com/rak200/.github/commit/4581961fc6c6eaa9aff122bdb727b77a4acea99f))
+* the mutation floor is compared as Stryker resolves it ([#148](https://github.com/rak200/.github/issues/148)) ([d7e183e](https://github.com/rak200/.github/commit/d7e183ed807c9beab6dde068133e082dc1f81cb0))
+
 ## [2.14.0](https://github.com/rak200/.github/compare/2.13.1...2.14.0) (2026-10-04)
 
 
