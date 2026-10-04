@@ -167,10 +167,12 @@ jobs:
       # so this comparison needs no new home for the value — only the two files the
       # PHPStan claim above already opens. rak200/workflow#69
       #
-      # Compared only where the repository restates a value. A consumer that merely
-      # `includes:` the standard has nothing to disagree with, and the standard itself
-      # has nothing above it: Composer installs no copy of a package into its own
-      # `vendor/`, which is what the guard below detects.
+      # The PHPStan level is compared only where the repository restates it: a consumer
+      # that merely `includes:` the standard has nothing to disagree with. Infection's
+      # floor is compared as Infection resolves it, because Infection has no `includes` —
+      # a repository's config is the whole config, and a value it leaves out is no value.
+      # The standard itself has nothing above it: Composer installs no copy of a package
+      # into its own `vendor/`, which is what the guard below detects.
       - name: A repository may not weaken a mandated value
         if: env.IS_FLOOR == 'true'
         run: |
@@ -204,8 +206,42 @@ jobs:
           }
           agree "PHPStan level" '(?<=level:\s)\S+' \
                 phpstan.neon.dist "$std/phpstan.neon.dist"
-          agree "Infection minCoveredMsi" '"minCoveredMsi"\s*:\s*\K[0-9]+' \
-                infection.json5.dist "$std/infection.json5.dist"
+
+          # The mutation floor as Infection resolves it: read with `json5_decode`, the parser
+          # Infection reads its own config with. Infection has no `includes`, so a config
+          # without `minCoveredMsi` is a run without a floor, and an absent value fails
+          # rather than standing for the standard's. Measured on rak200/utils: with
+          # `minCoveredMsi` removed, a run whose covered MSI was 5% exited 0.
+          # rak200/coding-standard-ts#25
+          msi() {   # $1 an Infection config — its minCoveredMsi, or `unset`
+            php -r '
+              require "vendor/autoload.php";
+              try {
+                  $config = json5_decode((string) file_get_contents($argv[1]), true);
+                  $value = is_array($config) ? ($config["minCoveredMsi"] ?? null) : null;
+                  echo $value === null ? "unset" : (string) $value, "\n";
+              } catch (Throwable $error) {
+                  echo "unreadable: ", strtok($error->getMessage(), "\n"), "\n";
+              }
+            ' "$1"
+          }
+          theirs=$(msi "$std/infection.json5.dist")
+          if ! [[ $theirs =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::minCoveredMsi cannot be read from the pinned standard's infection.json5.dist — $theirs"
+            fail=1
+          elif [ ! -f infection.json5.dist ]; then
+            echo "::error::no infection.json5.dist here, so Infection runs without a floor, against the standard's '$theirs'"
+            fail=1
+          else
+            compared=$((compared + 1))
+            mine=$(msi infection.json5.dist)
+            if [ "$mine" != "$theirs" ]; then
+              echo "::error file=infection.json5.dist::minCoveredMsi resolves to '$mine' here and is '$theirs' in the pinned standard"
+              fail=1
+            else
+              echo "Infection minCoveredMsi: '$mine' as Infection resolves it, and the standard agrees"
+            fi
+          fi
 
           # `require.php` is a FLOOR and not a constant, like `engines.node` in js.yml: a
           # package on a later PHP is conformant and one on an earlier PHP is not, so the
