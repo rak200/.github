@@ -272,6 +272,59 @@ jobs:
             fi
           fi
 
+          # ESM only, as the compiler enforces it. Two options carry the rule, and a tsconfig
+          # here can override either while every verb stays green. Measured on rak200/ui:
+          # under `moduleResolution: bundler` a relative import may drop its extension, and
+          # tsc, publint, ESLint, the suite and the Storybook build all pass while `dist/`
+          # fails to load in Node with ERR_MODULE_NOT_FOUND; under `verbatimModuleSyntax:
+          # false` a package without `"type": "module"` compiles to CommonJS with exit 0.
+          # With the standard's values both are compile errors, TS2835 and TS1295, which is
+          # also why `"type"` needs no comparison of its own.
+          #
+          # Resolved through `tsc --showConfig` rather than read, because the values arrive
+          # through `extends` and an inherited value is the one that runs — so unlike the
+          # comparisons above, a value this repository does not restate is still compared.
+          # Every tsconfig at the root, because the one that emits `dist/` is not always the
+          # one `analyse` reads. rak200/coding-standard-ts#25
+          value() {   # $1 option, stdin a tsconfig as JSON — lower-cased, or `unset` if absent
+            jq -r --arg o "$1" '.compilerOptions | if has($o) then .[$o] | tostring | ascii_downcase else "unset" end'
+          }
+          declare -A mandated=()
+          for option in module moduleResolution verbatimModuleSyntax; do
+            theirs=$(value "$option" < "$std/tsconfig.base.json" 2>/dev/null || true)
+            if [ -z "$theirs" ] || [ "$theirs" = unset ]; then
+              echo "::error::$option is not set in the pinned standard's tsconfig.base.json — the value it mandates cannot be read"
+              fail=1
+            else
+              mandated[$option]=$theirs
+            fi
+          done
+          configs=(tsconfig*.json)
+          if [ ! -e "${configs[0]}" ]; then
+            echo "no tsconfig*.json at the root — nothing here compiles TypeScript"
+          elif [ ! -x node_modules/.bin/tsc ]; then
+            echo "::error::no TypeScript compiler under node_modules/ — no tsconfig here can be resolved"
+            fail=1
+          else
+            for config in "${configs[@]}"; do
+              if ! resolved=$(node_modules/.bin/tsc --showConfig -p "$config" 2>&1); then
+                echo "::error file=$config::tsc cannot resolve it — $(printf '%s' "$resolved" | head -1)"
+                fail=1; continue
+              fi
+              for option in module moduleResolution verbatimModuleSyntax; do
+                [ -n "${mandated[$option]:-}" ] || continue
+                compared=$((compared + 1))
+                mine=$(printf '%s' "$resolved" | value "$option")
+                if [ "$mine" != "${mandated[$option]}" ]; then
+                  echo "::error file=$config::$option resolves to '$mine' here and is '${mandated[$option]}' in the pinned standard"
+                  fail=1
+                else
+                  echo "$config: $option '$mine', and the standard agrees"
+                fi
+              done
+            done
+          fi
+
           # The standard is present, so something was owed. A step that compared nothing
           # is not a step that found nothing.
           [ "$compared" -gt 0 ] || { echo "::error::the standard is installed and not one value was compared"; exit 1; }
