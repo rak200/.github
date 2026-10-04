@@ -196,12 +196,12 @@ jobs:
       # `node_modules/`, so this needs no new home for the value — only the files the
       # badge step above already reads. rak200/workflow#69
       #
-      # The ESLint tier is compared only where the repository restates it: a config that
-      # merely spreads `...base` has nothing to disagree with. The mutation floor and the
-      # tsconfig options are compared as their tools resolve them, so a config that leaves
-      # the standard out is caught as well. The standard itself has nothing above it: npm
-      # installs no copy of a package into its own `node_modules/`, which is what the guard
-      # below detects.
+      # Every value is compared as its tool resolves it, never as a file spells it. A config
+      # that leaves the standard out restates nothing, and reading that silence as "the
+      # standard's value is what runs" is how a repository could run with no mutation floor
+      # and no type-aware rules while this step said otherwise. The standard itself has
+      # nothing above it: npm installs no copy of a package into its own `node_modules/`,
+      # which is what the guard below detects.
       - name: A repository may not weaken a mandated value
         if: env.IS_FLOOR == 'true'
         run: |
@@ -210,29 +210,6 @@ jobs:
           [ -d "$std" ] || { echo "no pinned standard under node_modules/ — this repository is it"; exit 0; }
           fail=0
           compared=0
-          # A comment ABOUT a value reads exactly like the value to these patterns, and the
-          # first textual hit wins — so comment lines are dropped before matching, '#' for
-          # NEON and '//' for JSON5 and JS. rak200/.github#87
-          nocomment() { grep -vE '^[[:space:]]*(#|//)' "$1" 2>/dev/null; }
-          agree() {   # $1 label, $2 PCRE, $3 file here, $4 the same value in the standard
-            local mine theirs
-            theirs=$(nocomment "$4" | grep -oP "$2" | head -1 || true)
-            if [ -z "$theirs" ]; then
-              echo "::error::$1 is not set in the pinned standard — the value it mandates cannot be read"
-              fail=1; return 0
-            fi
-            compared=$((compared + 1))
-            mine=$(nocomment "$3" | grep -oP "$2" | head -1 || true)
-            if [ -z "$mine" ]; then
-              echo "$1: not restated here, so the standard's '$theirs' is what runs"
-              return 0
-            fi
-            if [ "$mine" != "$theirs" ]; then
-              echo "::error file=$3::$1 is '$mine' here and '$theirs' in the pinned standard"
-              fail=1; return 0
-            fi
-            echo "$1: '$mine', and the standard agrees"
-          }
           # The mutation floor as Stryker resolves it, by importing the config Stryker loads.
           # A config that does not spread the standard restates nothing, and Stryker then
           # runs on its own default, `thresholds.break: null` — a floor that never fails. So
@@ -268,8 +245,70 @@ jobs:
               echo "Stryker thresholds.break: '$mine' as Stryker resolves it, and the standard agrees"
             fi
           fi
-          agree "ESLint tier" 'tseslint\.configs\.\K(?:strict|recommended)TypeChecked' \
-                eslint.config.js "$std/eslint.base.js"
+
+          # The ESLint rules as ESLint resolves them, file by file, against the rules the
+          # standard's base resolves for the same files. Every rule the standard turns on must
+          # resolve here to the same severity and options; a rule this repository adds is its
+          # own business, and so is a file it ignores. Measured on rak200/ui: a config on
+          # typescript-eslint's untyped `recommended`, without the standard, passed `eslint .`
+          # and every check here, which reported the standard's tier as the one that runs; so
+          # did the standard spread with its doc-summary rule turned off.
+          # rak200/coding-standard-ts#25
+          compared=$((compared + 1))
+          git ls-files '*.ts' '*.tsx' '*.mts' '*.cts' '*.js' '*.mjs' '*.cjs' \
+            | node --input-type=module -e '
+                import { ESLint } from "eslint";
+                const first = (error) => String(error?.message ?? error).split("\n")[0];
+                let input = "";
+                for await (const chunk of process.stdin) input += chunk;
+                let theirs, mine;
+                try {
+                  const { default: base } = await import(process.argv[1]);
+                  theirs = new ESLint({ overrideConfigFile: true, overrideConfig: base });
+                  mine = new ESLint();
+                } catch (error) {
+                  console.log(`::error::the ESLint configs cannot be loaded — ${first(error)}`);
+                  process.exit(1);
+                }
+                const found = new Map();
+                let linted = 0;
+                let broken = false;
+                for (const file of input.split("\n").filter(Boolean)) {
+                  let standard, own;
+                  try {
+                    standard = await theirs.calculateConfigForFile(file);
+                    own = await mine.calculateConfigForFile(file);
+                  } catch (error) {
+                    console.log(`::error file=${file}::ESLint cannot resolve its config — ${first(error)}`);
+                    broken = true;
+                    continue;
+                  }
+                  if (!standard || !own) continue;
+                  linted += 1;
+                  for (const [rule, entry] of Object.entries(standard.rules ?? {})) {
+                    const severity = Array.isArray(entry) ? entry[0] : entry;
+                    if (severity === 0 || severity === "off") continue;
+                    const expected = JSON.stringify(entry);
+                    const actual = JSON.stringify(own.rules?.[rule] ?? "unset");
+                    if (actual === expected) continue;
+                    const key = JSON.stringify([rule, actual, expected]);
+                    const seen = found.get(key) ?? { rule, actual, expected, files: [] };
+                    seen.files.push(file);
+                    found.set(key, seen);
+                  }
+                }
+                const differences = [...found.values()];
+                for (const { rule, actual, expected, files } of differences.slice(0, 40)) {
+                  console.log(`::error file=${files[0]}::${rule} resolves to ${actual} here and is ${expected} in the pinned standard, in ${files.length} file(s)`);
+                }
+                if (differences.length > 40) console.log(`::error::and ${differences.length - 40} more rules differ`);
+                if (differences.length > 0 || broken) process.exit(1);
+                if (linted === 0) {
+                  console.log("::error::no file here is linted by both this repository and the standard — nothing was compared");
+                  process.exit(1);
+                }
+                console.log(`ESLint: in ${linted} files, every rule the standard turns on resolves as the standard sets it`);
+              ' "$(realpath "$std/eslint.base.js")" || fail=1
 
           # `engines.node` is the one mandated value that is a FLOOR and not a constant —
           # the convention says "22.13+", so a package on a later Node is conformant and a
