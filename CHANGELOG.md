@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.0](https://github.com/rak200/.github/compare/2.13.1...2.14.0) (2026-10-04)
+
+
+### Features
+
+* a repository may not override the module settings ESM only rests on ([#145](https://github.com/rak200/.github/issues/145)) ([0ebdf2c](https://github.com/rak200/.github/commit/0ebdf2cb87ded1b8548228bf5f7af1ae8317d4cf))
+
 ## [2.13.1](https://github.com/rak200/.github/compare/2.13.0...2.13.1) (2026-09-26)
 
 
