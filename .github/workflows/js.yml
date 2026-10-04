@@ -401,6 +401,26 @@ jobs:
             done
           fi
 
+          # The toolchain comes from the standard, and only from it. A repository that declares
+          # a package the standard brings gets a copy of its own at a version of its own: npm
+          # puts that copy at the root, and the verbs run it. Measured on rak200/ui: with
+          # `prettier@3.5.3` declared beside the standard's `^3.9.6`, `npm run lint` ran 3.5.3.
+          # What a repository declares beyond the toolchain — a library its tests import, a
+          # playground, Node's types where it runs TypeScript in Node — is its own, and is not
+          # read. rak200/coding-standard-ts#24
+          mapfile -t again < <(jq -r --slurpfile std "$std/package.json" '
+              [.dependencies, .devDependencies, .optionalDependencies] | map(. // {}) | add
+              | keys[] | select(. as $name | ($std[0].dependencies // {}) | has($name))' package.json)
+          compared=$((compared + 1))
+          if [ ${#again[@]} -gt 0 ]; then
+            for name in "${again[@]}"; do
+              echo "::error file=package.json::$name is declared here and brought by the pinned standard — two declarations are two versions, and the verbs run this one"
+            done
+            fail=1
+          else
+            echo "package.json: declares none of the $(jq '.dependencies // {} | length' "$std/package.json") packages the standard brings"
+          fi
+
           # The standard is present, so something was owed. A step that compared nothing
           # is not a step that found nothing.
           [ "$compared" -gt 0 ] || { echo "::error::the standard is installed and not one value was compared"; exit 1; }
