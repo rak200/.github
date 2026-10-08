@@ -68,7 +68,7 @@ jobs:
       # npm's own documented example carries `registry-url`. It is written for the token
       # flow and does not survive being reused for the tokenless one. The default
       # registry is already registry.npmjs.org, so dropping it costs nothing.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
